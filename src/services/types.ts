@@ -2,6 +2,7 @@ export type User = {
 	id: string;
 	name: string;
 	emailAddress: string;
+	accessToken?: string | null;
 };
 
 export type LeagueSummary = {

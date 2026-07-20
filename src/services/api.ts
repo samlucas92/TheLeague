@@ -1,11 +1,16 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
+const trimmedApiBaseUrl = configuredApiBaseUrl.replace(/\/$/, '');
+const apiBaseUrl = trimmedApiBaseUrl.endsWith('/api') ? trimmedApiBaseUrl : `${trimmedApiBaseUrl}/api`;
+export const accessTokenStorageKey = 'theleague.accessToken';
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+	const accessToken = window.localStorage.getItem(accessTokenStorageKey);
 	const response = await fetch(`${apiBaseUrl}${path}`, {
 		...options,
 		credentials: 'include',
 		headers: {
 			'Content-Type': 'application/json',
+			...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
 			...(options.headers ?? {})
 		}
 	});
