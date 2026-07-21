@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { setAccessToken } from '../services/api';
+import { getAccessToken, setAccessToken } from '../services/api';
 import { authService } from '../services/authService';
 import type { User } from '../services/types';
 
@@ -21,10 +21,16 @@ export const useAuthStore = create<AuthState>((set) => ({
 		set({ user });
 	},
 	loadMe: async () => {
+		const tokenAtRequestStart = getAccessToken();
 		try {
 			const user = await authService.me();
 			set({ user, isLoading: false });
 		} catch {
+			if (getAccessToken() !== tokenAtRequestStart) {
+				set({ isLoading: false });
+				return;
+			}
+
 			setAccessToken(null);
 			set({ user: null, isLoading: false });
 		}
