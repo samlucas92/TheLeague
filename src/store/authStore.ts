@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getAccessToken, setAccessToken } from '../services/api';
+import { clearAccessToken, getAccessToken } from '../services/api';
 import { authService } from '../services/authService';
 import type { User } from '../services/types';
 
@@ -15,7 +15,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 	isLoading: true,
 	setUser: (user) => {
 		if (!user) {
-			setAccessToken(null);
+			clearAccessToken();
 		}
 
 		set({ user });
@@ -31,8 +31,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 				return;
 			}
 
-			setAccessToken(null);
+			clearAccessToken();
 			set({ user: null, isLoading: false });
 		}
 	}
 }));
+
+window.addEventListener('theleague:unauthorised', () => {
+	useAuthStore.getState().setUser(null);
+});

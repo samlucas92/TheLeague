@@ -2,51 +2,33 @@ const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.e
 const trimmedApiBaseUrl = configuredApiBaseUrl.replace(/\/$/, '');
 const apiBaseUrl = trimmedApiBaseUrl.endsWith('/api') ? trimmedApiBaseUrl : `${trimmedApiBaseUrl}/api`;
 export const accessTokenStorageKey = 'theleague.accessToken';
-let inMemoryAccessToken: string | null = null;
 
 export function getAccessToken() {
-	if (inMemoryAccessToken) {
-		return inMemoryAccessToken;
-	}
-
-	try {
-		inMemoryAccessToken =
-			window.localStorage.getItem(accessTokenStorageKey) ??
-			window.sessionStorage.getItem(accessTokenStorageKey);
-	} catch {
-		inMemoryAccessToken = null;
-	}
-
-	return inMemoryAccessToken;
+	return window.localStorage.getItem(accessTokenStorageKey);
 }
 
-export function setAccessToken(accessToken: string | null | undefined) {
-	inMemoryAccessToken = accessToken || null;
-	try {
-		if (accessToken) {
-			window.localStorage.setItem(accessTokenStorageKey, accessToken);
-			window.sessionStorage.setItem(accessTokenStorageKey, accessToken);
-		} else {
-			window.localStorage.removeItem(accessTokenStorageKey);
-			window.sessionStorage.removeItem(accessTokenStorageKey);
-		}
-	} catch {
-		// Some private/mobile browser modes restrict storage; keep the memory token for this tab.
-	}
+export function setAccessToken(accessToken: string) {
+	window.localStorage.setItem(accessTokenStorageKey, accessToken);
+}
+
+export function clearAccessToken() {
+	window.localStorage.removeItem(accessTokenStorageKey);
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
 	const accessToken = getAccessToken();
 	const response = await fetch(`${apiBaseUrl}${path}`, {
 		...options,
-		credentials: options.credentials ?? 'include',
 		headers: {
 			'Content-Type': 'application/json',
 			...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-			...(accessToken ? { 'X-Access-Token': accessToken } : {}),
 			...(options.headers ?? {})
 		}
 	});
+
+	if (response.status === 401) {
+		window.dispatchEvent(new CustomEvent('theleague:unauthorised'));
+	}
 
 	if (!response.ok) {
 		let message = `Request failed with ${response.status}`;

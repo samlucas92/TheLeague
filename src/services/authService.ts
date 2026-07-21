@@ -1,29 +1,10 @@
-import { apiRequest, postJson, setAccessToken } from './api';
+import { apiRequest, clearAccessToken, postJson, setAccessToken } from './api';
 import type { LoginResponse, User } from './types';
 
 async function withPersistedToken(request: Promise<LoginResponse>) {
 	const response = await request;
-	const token = response.token ?? response.accessToken ?? response.Token ?? response.AccessToken;
-	const user = response.user ?? response.User ?? readLegacyUser(response);
-
-	if (!token) {
-		throw new Error('Login succeeded but the API did not return an access token.');
-	}
-
-	setAccessToken(token);
-	return user;
-}
-
-function readLegacyUser(response: LoginResponse): User {
-	const id = response.id ?? response.Id;
-	const name = response.name ?? response.Name;
-	const emailAddress = response.emailAddress ?? response.EmailAddress;
-
-	if (!id || !name || !emailAddress) {
-		throw new Error('Login succeeded but the API did not return a user.');
-	}
-
-	return { id, name, emailAddress };
+	setAccessToken(response.token);
+	return response.user;
 }
 
 export const authService = {
@@ -36,7 +17,7 @@ export const authService = {
 		try {
 			await postJson<void>('/auth/signout');
 		} finally {
-			setAccessToken(null);
+			clearAccessToken();
 		}
 	}
 };

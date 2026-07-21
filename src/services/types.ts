@@ -6,18 +6,8 @@ export type User = {
 
 export type LoginResponse = {
 	token: string;
-	Token?: string;
-	accessToken?: string;
-	AccessToken?: string;
 	expiresAt: string;
 	user: User;
-	User?: User;
-	id?: string;
-	Id?: string;
-	name?: string;
-	Name?: string;
-	emailAddress?: string;
-	EmailAddress?: string;
 };
 
 export type LeagueSummary = {
