@@ -1,11 +1,23 @@
-import { apiRequest, postJson } from './api';
+import { apiRequest, postJson, setAccessToken } from './api';
 import type { User } from './types';
 
+async function withPersistedToken(request: Promise<User>) {
+	const user = await request;
+	setAccessToken(user.accessToken);
+	return user;
+}
+
 export const authService = {
-	me: () => apiRequest<User>('/auth/me'),
+	me: () => withPersistedToken(apiRequest<User>('/auth/me')),
 	register: (name: string, emailAddress: string, password: string) =>
-		postJson<User>('/auth/register', { name, emailAddress, password }),
+		withPersistedToken(postJson<User>('/auth/register', { name, emailAddress, password })),
 	login: (emailAddress: string, password: string) =>
-		postJson<User>('/auth/login', { emailAddress, password }),
-	signout: () => postJson<void>('/auth/signout')
+		withPersistedToken(postJson<User>('/auth/login', { emailAddress, password })),
+	signout: async () => {
+		try {
+			await postJson<void>('/auth/signout');
+		} finally {
+			setAccessToken(null);
+		}
+	}
 };
