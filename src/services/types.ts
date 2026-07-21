@@ -53,6 +53,7 @@ export type Member = {
 
 export type Challenge = {
 	id: string;
+	createdByUserId: string;
 	name: string;
 	description?: string | null;
 	targetMemberIds: string[];
@@ -69,7 +70,7 @@ export type Challenge = {
 
 export type Submission = {
 	id: string;
-	challengeId: string;
+	challengeId?: string | null;
 	challengeName: string;
 	leagueMemberId: string;
 	displayName: string;
@@ -99,6 +100,12 @@ export type PointsFeedItem = {
 	challengeName?: string | null;
 	awardedByName: string;
 	awardedAt: string;
+};
+
+export type ManualPointsResult = {
+	status: string;
+	allocation?: PointsFeedItem | null;
+	submission?: Submission | null;
 };
 
 export type PublicLeagueView = {

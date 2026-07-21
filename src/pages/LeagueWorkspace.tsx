@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { Link, Outlet, useOutletContext, useParams } from 'react-router-dom';
-import { Check, Copy, Mail, MessageCircle, Plus, Send, Share2, X } from 'lucide-react';
+import { Check, Copy, Mail, MessageCircle, Pencil, Plus, Send, Share2, Trash2, X } from 'lucide-react';
 import { Button } from '../components/Button';
 import { CopyJoinCodeBadge } from '../components/CopyJoinCodeBadge';
 import { Field, SelectInput, TextArea, TextInput } from '../components/FormField';
@@ -15,6 +15,7 @@ import { useAuthStore } from '../store/authStore';
 type WorkspaceContext = {
 	league: League;
 	members: Member[];
+	currentMember?: Member;
 	refreshMembers: () => Promise<void>;
 	dataVersion: number;
 	openAddPointsModal: () => void;
@@ -30,6 +31,8 @@ export function LeagueWorkspace() {
 	const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
 	const [isCreateChallengeOpen, setIsCreateChallengeOpen] = useState(false);
 	const [isShareOpen, setIsShareOpen] = useState(false);
+	const { user } = useAuthStore();
+	const currentMember = members.find((member) => member.userId === user?.id);
 
 	async function refreshMembers() {
 		if (leagueId) {
@@ -79,6 +82,7 @@ export function LeagueWorkspace() {
 				context={{
 					league,
 					members,
+					currentMember,
 					refreshMembers,
 					dataVersion,
 					openAddPointsModal: () => setIsAddPointsOpen(true),
@@ -89,6 +93,7 @@ export function LeagueWorkspace() {
 				open={isAddPointsOpen}
 				league={league}
 				members={members}
+				currentMember={currentMember}
 				onClose={() => setIsAddPointsOpen(false)}
 				onSaved={notifyDataChanged}
 			/>
@@ -179,12 +184,36 @@ export function LeaderboardPage() {
 }
 
 export function PointsFeedPage() {
-	const { league, dataVersion, openAddPointsModal } = useWorkspace();
+	const { league, members, currentMember, dataVersion, openAddPointsModal } = useWorkspace();
 	const [items, setItems] = useState<PointsFeedItem[]>([]);
+	const [editingItem, setEditingItem] = useState<PointsFeedItem | null>(null);
+	const [message, setMessage] = useState('');
+	const [error, setError] = useState('');
+	const canManagePoints = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
+
+	async function refreshPoints() {
+		setItems(await leagueService.pointsFeed(league.id));
+	}
 
 	useEffect(() => {
-		leagueService.pointsFeed(league.id).then(setItems);
+		refreshPoints();
 	}, [league.id, dataVersion]);
+
+	async function deletePoints(item: PointsFeedItem) {
+		if (!window.confirm('Delete this point entry?')) {
+			return;
+		}
+
+		setError('');
+		setMessage('');
+		try {
+			await leagueService.deletePoints(league.id, item.allocationId);
+			setMessage('Point entry deleted.');
+			await refreshPoints();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not delete points.');
+		}
+	}
 
 	return (
 		<div className="grid gap-5">
@@ -199,21 +228,49 @@ export function PointsFeedPage() {
 						<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
 					</div>
 				</div>
-				{items.map((item) => <FeedLine key={item.allocationId} item={item} />)}
+				{items.map((item) => (
+					<FeedLine
+						key={item.allocationId}
+						item={item}
+						actions={canManagePoints ? (
+							<div className="flex gap-2">
+								<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingItem(item)} aria-label="Edit points"><Pencil size={16} /></Button>
+								<Button type="button" variant="danger" className="px-3" onClick={() => deletePoints(item)} aria-label="Delete points"><Trash2 size={16} /></Button>
+							</div>
+						) : undefined}
+					/>
+				))}
 				{items.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No official points yet.</div> : null}
 			</section>
+			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
+			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+			{editingItem ? (
+				<EditPointsModal
+					open
+					league={league}
+					members={members}
+					item={editingItem}
+					onClose={() => setEditingItem(null)}
+					onSaved={async () => {
+						setEditingItem(null);
+						setMessage('Point entry updated.');
+						await refreshPoints();
+					}}
+				/>
+			) : null}
 		</div>
 	);
 }
 
 export function ChallengesPage() {
-	const { league, members, dataVersion, openCreateChallengeModal } = useWorkspace();
+	const { league, members, currentMember, dataVersion, openCreateChallengeModal } = useWorkspace();
 	const { user } = useAuthStore();
 	const [challenges, setChallenges] = useState<Challenge[]>([]);
 	const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+	const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
 	const [page, setPage] = useState(1);
 	const [message, setMessage] = useState('');
-	const currentMember = members.find((member) => member.userId === user?.id);
+	const [error, setError] = useState('');
 	const pageSize = 5;
 	const totalPages = Math.max(1, Math.ceil(challenges.length / pageSize));
 	const pagedChallenges = challenges.slice((page - 1) * pageSize, page * pageSize);
@@ -244,6 +301,22 @@ export function ChallengesPage() {
 		await refreshChallenges();
 	}
 
+	async function deleteChallenge(challenge: Challenge) {
+		if (!window.confirm('Delete this challenge?')) {
+			return;
+		}
+
+		setError('');
+		setMessage('');
+		try {
+			await leagueService.deleteChallenge(league.id, challenge.id);
+			setMessage('Challenge deleted.');
+			await refreshChallenges();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not delete challenge.');
+		}
+	}
+
 	return (
 		<div className="grid gap-5">
 			<section className="grid gap-3">
@@ -259,11 +332,19 @@ export function ChallengesPage() {
 				</div>
 				{pagedChallenges.map((challenge) => {
 					const status = getChallengeStatus(challenge, currentMember?.id);
+					const canMaintainChallenge = user?.id === challenge.createdByUserId || currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 					return (
-						<button
+						<article
 							key={challenge.id}
 							className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-ink/30 hover:shadow-md"
 							onClick={() => setSelectedChallenge(challenge)}
+							role="button"
+							tabIndex={0}
+							onKeyDown={(event) => {
+								if (event.key === 'Enter' || event.key === ' ') {
+									setSelectedChallenge(challenge);
+								}
+							}}
 						>
 							<div className="flex flex-wrap items-start justify-between gap-3">
 								<div className="min-w-0">
@@ -272,14 +353,22 @@ export function ChallengesPage() {
 										{challenge.description || 'No description yet.'}
 									</p>
 								</div>
-								<StatusBadge label={status} tone={status === 'Rejected' || status === 'Failed' ? 'bad' : status === 'Accepted' || status === 'Completed' ? 'good' : 'warning'} />
+								<div className="flex items-center gap-2">
+									<StatusBadge label={status} tone={status === 'Rejected' || status === 'Failed' ? 'bad' : status === 'Accepted' || status === 'Completed' ? 'good' : 'warning'} />
+									{canMaintainChallenge ? (
+										<span className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+											<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingChallenge(challenge)} aria-label="Edit challenge"><Pencil size={16} /></Button>
+											<Button type="button" variant="danger" className="px-3" onClick={() => deleteChallenge(challenge)} aria-label="Delete challenge"><Trash2 size={16} /></Button>
+										</span>
+									) : null}
+								</div>
 							</div>
 							<div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
 								<span className="rounded bg-slate-100 px-2 py-1">Aimed at {challenge.targetNames.join(', ')}</span>
 								<span className="rounded bg-emerald-100 px-2 py-1 text-emerald-800">+{challenge.pointsForSuccess} if completed</span>
 								<span className="rounded bg-red-100 px-2 py-1 text-red-800">{challenge.pointsForFailure} if rejected</span>
 							</div>
-						</button>
+						</article>
 					);
 				})}
 				{challenges.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No challenges yet.</div> : null}
@@ -291,6 +380,21 @@ export function ChallengesPage() {
 				) : null}
 			</section>
 			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
+			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+			{editingChallenge ? (
+				<EditChallengeModal
+					open
+					league={league}
+					members={members}
+					challenge={editingChallenge}
+					onClose={() => setEditingChallenge(null)}
+					onSaved={async () => {
+						setEditingChallenge(null);
+						setMessage('Challenge updated.');
+						await refreshChallenges();
+					}}
+				/>
+			) : null}
 			{selectedChallenge ? (() => {
 				const memberId = currentMember?.id;
 				const isTargeted = !!memberId && selectedChallenge.targetMemberIds.includes(memberId);
@@ -373,6 +477,14 @@ export function AdminPage() {
 		await refresh();
 	}
 
+	async function reject(submission: Submission) {
+		await leagueService.rejectSubmission(league.id, submission.id, {
+			publicReviewReason: submission.publicReason
+		});
+		setMessage('Submission rejected.');
+		await refresh();
+	}
+
 	return (
 		<div className="grid gap-5">
 			<section className="rounded-lg border border-slate-200 bg-white p-5">
@@ -385,7 +497,10 @@ export function AdminPage() {
 									<p className="font-semibold text-ink">{submission.displayName}</p>
 									<p className="text-sm text-slate-600">{submission.challengeName}: {submission.publicReason}</p>
 								</div>
-								<Button icon={<Check size={16} />} onClick={() => approve(submission)}>Approve</Button>
+								<div className="flex gap-2">
+									<Button variant="secondary" icon={<X size={16} />} onClick={() => reject(submission)}>Reject</Button>
+									<Button icon={<Check size={16} />} onClick={() => approve(submission)}>Approve</Button>
+								</div>
 							</div>
 						</div>
 					))}
@@ -404,11 +519,13 @@ export function MembersPage() {
 	const [emailAddress, setEmailAddress] = useState('');
 	const [role, setRole] = useState('Participant');
 	const [linkEmails, setLinkEmails] = useState<Record<string, string>>({});
+	const [editingMember, setEditingMember] = useState<Member | null>(null);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const currentMember = members.find((member) => member.userId === user?.id);
+	const isOwner = currentMember?.role === 'Owner';
 	const canManageMembers = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
-	const roleOptions = ['Participant', 'PointApprover', 'Admin', 'Owner'];
+	const roleOptions = isOwner ? ['Participant', 'PointApprover', 'Admin', 'Owner'] : ['Participant', 'PointApprover', 'Admin'];
 
 	async function addOfflineMember(event: FormEvent) {
 		event.preventDefault();
@@ -450,6 +567,22 @@ export function MembersPage() {
 		}
 	}
 
+	async function removeMember(member: Member) {
+		if (!window.confirm(`Remove ${member.displayName} from this league? Their existing point history will stay in the feed.`)) {
+			return;
+		}
+
+		setError('');
+		setMessage('');
+		try {
+			await leagueService.removeMember(league.id, member.id);
+			setMessage('Member removed.');
+			await refreshMembers();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not remove member.');
+		}
+	}
+
 	return (
 		<div className="grid gap-5">
 			{canManageMembers ? (
@@ -478,7 +611,7 @@ export function MembersPage() {
 					<p className="text-sm text-slate-600">{members.length} people in this league.</p>
 				</div>
 				{members.map((member) => (
-					<div key={member.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_14rem_minmax(0,24rem)] lg:items-center">
+					<div key={member.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[minmax(0,1fr)_12rem_minmax(0,24rem)_auto] xl:items-center">
 						<div className="min-w-0">
 							<p className="font-bold text-ink">{member.displayName}</p>
 							<p className="text-sm text-slate-600">
@@ -487,8 +620,8 @@ export function MembersPage() {
 							</p>
 						</div>
 						{canManageMembers ? (
-							<SelectInput value={member.role} onChange={(event) => changeRole(member, event.target.value)}>
-								{roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+							<SelectInput value={member.role} onChange={(event) => changeRole(member, event.target.value)} disabled={!isOwner && (member.role === 'Owner' || member.role === 'Admin')}>
+								{(roleOptions.includes(member.role) ? roleOptions : [member.role, ...roleOptions]).map((option) => <option key={option} value={option}>{option}</option>)}
 							</SelectInput>
 						) : (
 							<StatusBadge label={member.role} tone={member.role === 'Owner' ? 'good' : member.role === 'PointApprover' ? 'warning' : 'neutral'} />
@@ -504,14 +637,110 @@ export function MembersPage() {
 								<Button type="button" variant="secondary" onClick={() => linkMember(member)}>Link</Button>
 							</div>
 						) : (
-							<div className="hidden lg:block" />
+							<div className="hidden xl:block" />
+						)}
+						{canManageMembers ? (
+							<div className="flex flex-wrap gap-2 xl:justify-end">
+								<Button type="button" variant="secondary" icon={<Pencil size={16} />} disabled={!isOwner && (member.role === 'Owner' || member.role === 'Admin')} onClick={() => setEditingMember(member)}>Edit</Button>
+								<Button
+									type="button"
+									variant="danger"
+									icon={<Trash2 size={16} />}
+									disabled={member.id === currentMember?.id || (!isOwner && (member.role === 'Owner' || member.role === 'Admin'))}
+									onClick={() => removeMember(member)}
+								>
+									Remove
+								</Button>
+							</div>
+						) : (
+							<div className="hidden xl:block" />
 						)}
 					</div>
 				))}
 			</section>
+			{editingMember ? (
+				<EditMemberModal
+					open={Boolean(editingMember)}
+					league={league}
+					member={editingMember}
+					roleOptions={roleOptions}
+					onClose={() => setEditingMember(null)}
+					onSaved={async () => {
+						setEditingMember(null);
+						setMessage('Member updated.');
+						await refreshMembers();
+					}}
+				/>
+			) : null}
 			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 		</div>
+	);
+}
+
+function EditMemberModal({
+	open,
+	league,
+	member,
+	roleOptions,
+	onClose,
+	onSaved
+}: {
+	open: boolean;
+	league: League;
+	member: Member;
+	roleOptions: string[];
+	onClose: () => void;
+	onSaved: () => void | Promise<void>;
+}) {
+	const [displayName, setDisplayName] = useState(member.displayName);
+	const [emailAddress, setEmailAddress] = useState(member.emailAddress ?? '');
+	const [role, setRole] = useState(member.role);
+	const [error, setError] = useState('');
+
+	useEffect(() => {
+		setDisplayName(member.displayName);
+		setEmailAddress(member.emailAddress ?? '');
+		setRole(member.role);
+		setError('');
+	}, [member]);
+
+	async function submit(event: FormEvent) {
+		event.preventDefault();
+		setError('');
+		try {
+			await leagueService.updateMember(league.id, member.id, {
+				displayName,
+				emailAddress,
+				role
+			});
+			await onSaved();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not update member.');
+		}
+	}
+
+	return (
+		<Modal open={open} title="Edit member" description="Update this member's display details and league role." onClose={onClose}>
+			<form className="grid gap-4" onSubmit={submit}>
+				<Field label="Display name">
+					<TextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
+				</Field>
+				<Field label="Email optional">
+					<TextInput type="email" value={emailAddress} onChange={(event) => setEmailAddress(event.target.value)} />
+				</Field>
+				<Field label="Role">
+					<SelectInput value={role} onChange={(event) => setRole(event.target.value)}>
+						{roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+					</SelectInput>
+				</Field>
+				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+				<div className="flex flex-wrap justify-end gap-2">
+					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+					<Button type="submit" icon={<Check size={16} />}>Save changes</Button>
+				</div>
+			</form>
+		</Modal>
 	);
 }
 
@@ -545,12 +774,14 @@ function AddPointsModal({
 	open,
 	league,
 	members,
+	currentMember,
 	onClose,
 	onSaved
 }: {
 	open: boolean;
 	league: League;
 	members: Member[];
+	currentMember?: Member;
 	onClose: () => void;
 	onSaved: () => void;
 }) {
@@ -558,6 +789,7 @@ function AddPointsModal({
 	const [points, setPoints] = useState('10');
 	const [reason, setReason] = useState('');
 	const [error, setError] = useState('');
+	const appliesImmediately = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 
 	useEffect(() => {
 		if (open && members.length > 0 && !selectedMemberId) {
@@ -570,7 +802,7 @@ function AddPointsModal({
 		setError('');
 
 		try {
-			await leagueService.addPoints(league.id, {
+			const result = await leagueService.addPoints(league.id, {
 				leagueMemberId: selectedMemberId,
 				points: Number(points),
 				reason
@@ -578,6 +810,7 @@ function AddPointsModal({
 			setReason('');
 			onSaved();
 			onClose();
+			return result;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not add points.');
 		}
@@ -587,7 +820,7 @@ function AddPointsModal({
 		<Modal
 			open={open}
 			title="Add points"
-			description="Award or deduct points directly from the official feed."
+			description={appliesImmediately ? 'Award or deduct points directly from the official feed.' : 'Submit a point change for an admin or point approver to review.'}
 			onClose={onClose}
 		>
 			<form className="grid gap-4" onSubmit={submit}>
@@ -604,11 +837,80 @@ function AddPointsModal({
 				<Field label="Reason">
 					<TextArea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Won round one, late arrival, bonus..." required />
 				</Field>
-				<div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">Use positive numbers for awards and negative numbers for deductions.</div>
+				<div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+					Use positive numbers for awards and negative numbers for deductions. {appliesImmediately ? 'This will be applied immediately.' : 'This will appear in pending approvals.'}
+				</div>
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-					<Button type="submit" icon={<Plus size={16} />} disabled={!selectedMemberId}>Add points</Button>
+					<Button type="submit" icon={<Plus size={16} />} disabled={!selectedMemberId}>{appliesImmediately ? 'Add points' : 'Submit request'}</Button>
+				</div>
+			</form>
+		</Modal>
+	);
+}
+
+function EditPointsModal({
+	open,
+	league,
+	members,
+	item,
+	onClose,
+	onSaved
+}: {
+	open: boolean;
+	league: League;
+	members: Member[];
+	item: PointsFeedItem;
+	onClose: () => void;
+	onSaved: () => void | Promise<void>;
+}) {
+	const [selectedMemberId, setSelectedMemberId] = useState(item.leagueMemberId);
+	const [points, setPoints] = useState(String(item.points));
+	const [reason, setReason] = useState(item.reason);
+	const [error, setError] = useState('');
+
+	useEffect(() => {
+		setSelectedMemberId(item.leagueMemberId);
+		setPoints(String(item.points));
+		setReason(item.reason);
+	}, [item]);
+
+	async function submit(event: FormEvent) {
+		event.preventDefault();
+		setError('');
+		try {
+			await leagueService.updatePoints(league.id, item.allocationId, {
+				leagueMemberId: selectedMemberId,
+				points: Number(points),
+				reason
+			});
+			await onSaved();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not update points.');
+		}
+	}
+
+	return (
+		<Modal open={open} title="Edit point entry" description="Correct the person, amount, or reason for this official feed entry." onClose={onClose}>
+			<form className="grid gap-4" onSubmit={submit}>
+				<div className="grid min-w-0 gap-4 sm:grid-cols-[minmax(0,1fr)_8rem]">
+					<Field label="Person">
+						<SelectInput value={selectedMemberId} onChange={(event) => setSelectedMemberId(event.target.value)} required>
+							{members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}
+						</SelectInput>
+					</Field>
+					<Field label="Amount">
+						<TextInput type="number" value={points} onChange={(event) => setPoints(event.target.value)} required />
+					</Field>
+				</div>
+				<Field label="Reason">
+					<TextArea value={reason} onChange={(event) => setReason(event.target.value)} required />
+				</Field>
+				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+				<div className="flex flex-wrap justify-end gap-2">
+					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+					<Button type="submit" icon={<Check size={16} />}>Save changes</Button>
 				</div>
 			</form>
 		</Modal>
@@ -708,6 +1010,106 @@ function CreateChallengeModal({
 	);
 }
 
+function EditChallengeModal({
+	open,
+	league,
+	members,
+	challenge,
+	onClose,
+	onSaved
+}: {
+	open: boolean;
+	league: League;
+	members: Member[];
+	challenge: Challenge;
+	onClose: () => void;
+	onSaved: () => void | Promise<void>;
+}) {
+	const [name, setName] = useState(challenge.name);
+	const [description, setDescription] = useState(challenge.description ?? '');
+	const [targetMemberIds, setTargetMemberIds] = useState<string[]>(challenge.targetMemberIds);
+	const [pointsForSuccess, setPointsForSuccess] = useState(String(challenge.pointsForSuccess));
+	const [pointsForFailure, setPointsForFailure] = useState(String(challenge.pointsForFailure));
+	const [isActive, setIsActive] = useState(challenge.isActive);
+	const [error, setError] = useState('');
+
+	useEffect(() => {
+		setName(challenge.name);
+		setDescription(challenge.description ?? '');
+		setTargetMemberIds(challenge.targetMemberIds);
+		setPointsForSuccess(String(challenge.pointsForSuccess));
+		setPointsForFailure(String(challenge.pointsForFailure));
+		setIsActive(challenge.isActive);
+	}, [challenge]);
+
+	function toggleTarget(memberId: string) {
+		setTargetMemberIds((current) =>
+			current.includes(memberId)
+				? current.filter((id) => id !== memberId)
+				: [...current, memberId]
+		);
+	}
+
+	async function submit(event: FormEvent) {
+		event.preventDefault();
+		setError('');
+		try {
+			await leagueService.updateChallenge(league.id, challenge.id, {
+				name,
+				description,
+				targetMemberIds,
+				pointsForSuccess: Number(pointsForSuccess),
+				pointsForFailure: Number(pointsForFailure),
+				isActive
+			});
+			await onSaved();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not update challenge.');
+		}
+	}
+
+	return (
+		<Modal open={open} title="Edit challenge" description="Update the challenge details, targets, points, or visibility." onClose={onClose}>
+			<form className="grid gap-4" onSubmit={submit}>
+				<Field label="Title">
+					<TextInput value={name} onChange={(event) => setName(event.target.value)} required />
+				</Field>
+				<Field label="Description">
+					<TextArea value={description} onChange={(event) => setDescription(event.target.value)} required />
+				</Field>
+				<div className="grid gap-2">
+					<p className="text-sm font-medium text-slate-700">Aimed at</p>
+					<div className="grid max-h-48 gap-2 overflow-auto rounded-md border border-slate-200 p-2">
+						{members.map((member) => (
+							<label key={member.id} className="flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 hover:bg-slate-50">
+								<input type="checkbox" checked={targetMemberIds.includes(member.id)} onChange={() => toggleTarget(member.id)} />
+								{member.displayName}
+							</label>
+						))}
+					</div>
+				</div>
+				<div className="grid min-w-0 gap-4 sm:grid-cols-2">
+					<Field label="Points for completion">
+						<TextInput type="number" value={pointsForSuccess} onChange={(event) => setPointsForSuccess(event.target.value)} required />
+					</Field>
+					<Field label="Points lost for rejection">
+						<TextInput type="number" value={pointsForFailure} onChange={(event) => setPointsForFailure(event.target.value)} required />
+					</Field>
+				</div>
+				<label className="flex items-center gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+					<input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} />
+					Active challenge
+				</label>
+				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+				<div className="flex flex-wrap justify-end gap-2">
+					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+					<Button type="submit" icon={<Check size={16} />} disabled={targetMemberIds.length === 0}>Save changes</Button>
+				</div>
+			</form>
+		</Modal>
+	);
+}
+
 function ShareLeagueModal({ open, league, onClose }: { open: boolean; league: League; onClose: () => void }) {
 	const [message, setMessage] = useState('');
 	const shareUrl = typeof window === 'undefined'
@@ -792,7 +1194,7 @@ function LeaderboardLine({ row }: { row: LeaderboardRow }) {
 	);
 }
 
-function FeedLine({ item }: { item: PointsFeedItem }) {
+function FeedLine({ item, actions }: { item: PointsFeedItem; actions?: ReactNode }) {
 	const positive = item.points >= 0;
 	return (
 		<article className="rounded-lg border border-slate-200 bg-white p-4">
@@ -802,7 +1204,10 @@ function FeedLine({ item }: { item: PointsFeedItem }) {
 					<p className="text-sm text-slate-600">{item.reason}</p>
 					<p className="mt-1 text-xs text-slate-500">{item.challengeName ?? item.source} · Awarded by {item.awardedByName}</p>
 				</div>
-				<StatusBadge label={`${positive ? '+' : ''}${item.points}`} tone={positive ? 'good' : 'bad'} />
+				<div className="flex items-center gap-2">
+					<StatusBadge label={`${positive ? '+' : ''}${item.points}`} tone={positive ? 'good' : 'bad'} />
+					{actions}
+				</div>
 			</div>
 		</article>
 	);
