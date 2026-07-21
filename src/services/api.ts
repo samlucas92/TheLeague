@@ -39,7 +39,6 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 	const accessToken = getAccessToken();
 	const response = await fetch(`${apiBaseUrl}${path}`, {
 		...options,
-		credentials: 'include',
 		headers: {
 			'Content-Type': 'application/json',
 			...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),

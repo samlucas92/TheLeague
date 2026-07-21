@@ -14,7 +14,10 @@ export const useAuthStore = create<AuthState>((set) => ({
 	user: null,
 	isLoading: true,
 	setUser: (user) => {
-		setAccessToken(user?.accessToken);
+		if (!user) {
+			setAccessToken(null);
+		}
+
 		set({ user });
 	},
 	loadMe: async () => {

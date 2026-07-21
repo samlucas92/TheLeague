@@ -2,7 +2,12 @@ export type User = {
 	id: string;
 	name: string;
 	emailAddress: string;
-	accessToken?: string | null;
+};
+
+export type LoginResponse = {
+	token: string;
+	expiresAt: string;
+	user: User;
 };
 
 export type LeagueSummary = {
