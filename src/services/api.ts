@@ -26,10 +26,6 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}): Pr
 		}
 	});
 
-	if (response.status === 401) {
-		window.dispatchEvent(new CustomEvent('theleague:unauthorised'));
-	}
-
 	if (!response.ok) {
 		let message = `Request failed with ${response.status}`;
 		try {

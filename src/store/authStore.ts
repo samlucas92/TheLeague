@@ -22,6 +22,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 	},
 	loadMe: async () => {
 		const tokenAtRequestStart = getAccessToken();
+		if (!tokenAtRequestStart) {
+			set({ user: null, isLoading: false });
+			return;
+		}
+
 		try {
 			const user = await authService.me();
 			set({ user, isLoading: false });
@@ -36,7 +41,3 @@ export const useAuthStore = create<AuthState>((set) => ({
 		}
 	}
 }));
-
-window.addEventListener('theleague:unauthorised', () => {
-	useAuthStore.getState().setUser(null);
-});
