@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="The League">
+	<rect width="512" height="512" rx="112" fill="#111827"/>
+	<circle cx="256" cy="256" r="176" fill="#ecfdf5"/>
+	<path fill="#111827" d="M176 144h160v40h52v36c0 61-38 107-96 118v42h56v36H164v-36h56v-42c-58-11-96-57-96-118v-36h52v-40Zm36 36v116c0 35 24 60 44 60s44-25 44-60V180h-88Zm-52 40c1 34 18 61 44 75v-75h-44Zm148 75c26-14 43-41 44-75h-44v75Z"/>
+	<path fill="#34d399" d="M212 180h88v116c0 35-24 60-44 60s-44-25-44-60V180Z"/>
+</svg>

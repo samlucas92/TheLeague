@@ -16,6 +16,7 @@ import {
 	PointsFeedPage
 } from './pages/LeagueWorkspace';
 import { PublicLeagueViewPage } from './pages/PublicLeagueViewPage';
+import { PwaStatus } from './components/PwaStatus';
 import './styles/index.css';
 
 const router = createBrowserRouter([
@@ -51,5 +52,6 @@ const router = createBrowserRouter([
 ReactDOM.createRoot(document.getElementById('root')!).render(
 	<React.StrictMode>
 		<RouterProvider router={router} />
+		<PwaStatus />
 	</React.StrictMode>
 );

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="The League">
+	<rect width="64" height="64" rx="14" fill="#111827"/>
+	<path fill="#ecfdf5" d="M22 14h20v5h7v5c0 8-5 14-12 16v5h7v5H20v-5h7v-5c-7-2-12-8-12-16v-5h7v-5Zm5 5v15c0 4 3 8 5 8s5-4 5-8V19H27Zm-7 5c0 4 2 8 7 10V24h-7Zm17 10c5-2 7-6 7-10h-7v10Z"/>
+	<path fill="#34d399" d="M27 19h10v15c0 4-3 8-5 8s-5-4-5-8V19Z"/>
+</svg>
