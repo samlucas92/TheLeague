@@ -1,4 +1,4 @@
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5000/api';
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
 const trimmedApiBaseUrl = configuredApiBaseUrl.replace(/\/$/, '');
 const apiBaseUrl = trimmedApiBaseUrl.endsWith('/api') ? trimmedApiBaseUrl : `${trimmedApiBaseUrl}/api`;
 export const accessTokenStorageKey = 'theleague.accessToken';
