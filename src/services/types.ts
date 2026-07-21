@@ -6,6 +6,7 @@ export type User = {
 
 export type LoginResponse = {
 	token: string;
+	accessToken?: string;
 	expiresAt: string;
 	user: User;
 };

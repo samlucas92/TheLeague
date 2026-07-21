@@ -3,7 +3,7 @@ import type { LoginResponse, User } from './types';
 
 async function withPersistedToken(request: Promise<LoginResponse>) {
 	const response = await request;
-	setAccessToken(response.token);
+	setAccessToken(response.token ?? response.accessToken);
 	return response.user;
 }
 
