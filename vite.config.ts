@@ -8,7 +8,7 @@ export default defineConfig({
 		VitePWA({
 			registerType: 'prompt',
 			injectRegister: false,
-			includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-icon.svg'],
+			includeAssets: ['favicon.svg', 'apple-touch-icon-v2.png', 'pwa-icon.svg'],
 			manifest: {
 				id: '/',
 				name: 'The League',
@@ -22,9 +22,9 @@ export default defineConfig({
 				scope: '/',
 				categories: ['sports', 'entertainment', 'productivity'],
 				icons: [
-					{ src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-					{ src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-					{ src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+					{ src: '/pwa-192x192-v2.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+					{ src: '/pwa-512x512-v2.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+					{ src: '/pwa-512x512-v2.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
 				]
 			},
 			workbox: {
