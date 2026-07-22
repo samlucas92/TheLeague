@@ -1,6 +1,6 @@
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api');
 const trimmedApiBaseUrl = configuredApiBaseUrl.replace(/\/$/, '');
-const apiBaseUrl = trimmedApiBaseUrl.endsWith('/api') ? trimmedApiBaseUrl : `${trimmedApiBaseUrl}/api`;
+export const apiBaseUrl = trimmedApiBaseUrl.endsWith('/api') ? trimmedApiBaseUrl : `${trimmedApiBaseUrl}/api`;
 export const accessTokenStorageKey = 'theleague.accessToken';
 
 export function getAccessToken() {
@@ -50,3 +50,15 @@ export const postJson = <T>(path: string, body?: unknown) =>
 		method: 'POST',
 		body: body === undefined ? undefined : JSON.stringify(body)
 	});
+
+export async function warmUpApi(signal?: AbortSignal) {
+	const response = await fetch(`${apiBaseUrl}/health`, {
+		cache: 'no-store',
+		headers: { Accept: 'application/json' },
+		signal
+	});
+
+	if (!response.ok) {
+		throw new Error(`Warm-up failed with ${response.status}`);
+	}
+}

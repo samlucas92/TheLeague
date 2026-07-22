@@ -17,6 +17,7 @@ import {
 } from './pages/LeagueWorkspace';
 import { PublicLeagueViewPage } from './pages/PublicLeagueViewPage';
 import { PwaStatus } from './components/PwaStatus';
+import { WarmUpSplash } from './components/WarmUpSplash';
 import './styles/index.css';
 
 const router = createBrowserRouter([
@@ -49,9 +50,23 @@ const router = createBrowserRouter([
 	}
 ]);
 
+function Root() {
+	const [isWarmedUp, setIsWarmedUp] = React.useState(false);
+
+	if (!isWarmedUp) {
+		return <WarmUpSplash onReady={() => setIsWarmedUp(true)} />;
+	}
+
+	return (
+		<>
+			<RouterProvider router={router} />
+			<PwaStatus />
+		</>
+	);
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
 	<React.StrictMode>
-		<RouterProvider router={router} />
-		<PwaStatus />
+		<Root />
 	</React.StrictMode>
 );
