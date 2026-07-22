@@ -3,6 +3,7 @@ import { Trophy } from 'lucide-react';
 import { warmUpApi } from '../services/api';
 
 type WarmUpSplashProps = {
+	prepareApp?: () => Promise<void>;
 	onReady: () => void;
 };
 
@@ -17,7 +18,7 @@ function getConfiguredDurationMs() {
 	return safeSeconds * 1000;
 }
 
-export function WarmUpSplash({ onReady }: WarmUpSplashProps) {
+export function WarmUpSplash({ prepareApp, onReady }: WarmUpSplashProps) {
 	const durationMs = useMemo(getConfiguredDurationMs, []);
 	const [progress, setProgress] = useState(6);
 	const [message, setMessage] = useState('Warming up the league...');
@@ -27,33 +28,45 @@ export function WarmUpSplash({ onReady }: WarmUpSplashProps) {
 		const controller = new AbortController();
 		const maxWaitMs = Math.max(durationMs * 2, 45000);
 		let hasCompleted = false;
+		let isMounted = true;
 
-		const finish = () => {
+		const finish = async () => {
 			if (hasCompleted) {
 				return;
 			}
 
 			hasCompleted = true;
-			setProgress(100);
-			setMessage('Ready.');
-			window.setTimeout(onReady, 320);
+			setProgress(98);
+			setMessage('Loading your league...');
+
+			try {
+				await prepareApp?.();
+			} finally {
+				if (!isMounted) {
+					return;
+				}
+
+				setProgress(100);
+				setMessage('Ready.');
+				window.setTimeout(onReady, 320);
+			}
 		};
 
 		const fallbackTimer = window.setTimeout(() => {
 			controller.abort();
-			finish();
+			void finish();
 		}, maxWaitMs);
 
 		warmUpApi(controller.signal)
 			.then(() => {
 				const elapsed = Date.now() - startedAt;
 				window.setTimeout(() => {
-					finish();
+					void finish();
 				}, Math.max(0, minimumVisibleMs - elapsed));
 			})
 			.catch(() => {
 				const elapsed = Date.now() - startedAt;
-				window.setTimeout(finish, Math.max(0, minimumVisibleMs - elapsed));
+				window.setTimeout(() => void finish(), Math.max(0, minimumVisibleMs - elapsed));
 			});
 
 		const interval = window.setInterval(() => {
@@ -71,11 +84,12 @@ export function WarmUpSplash({ onReady }: WarmUpSplashProps) {
 		}, 100);
 
 		return () => {
+			isMounted = false;
 			controller.abort();
 			window.clearInterval(interval);
 			window.clearTimeout(fallbackTimer);
 		};
-	}, [durationMs, onReady]);
+	}, [durationMs, onReady, prepareApp]);
 
 	return (
 		<main className="grid min-h-screen place-items-center bg-slate-50 px-4">

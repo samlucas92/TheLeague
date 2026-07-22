@@ -18,6 +18,7 @@ import {
 import { PublicLeagueViewPage } from './pages/PublicLeagueViewPage';
 import { PwaStatus } from './components/PwaStatus';
 import { WarmUpSplash } from './components/WarmUpSplash';
+import { useAuthStore } from './store/authStore';
 import './styles/index.css';
 
 const router = createBrowserRouter([
@@ -51,10 +52,12 @@ const router = createBrowserRouter([
 ]);
 
 function Root() {
-	const [isWarmedUp, setIsWarmedUp] = React.useState(false);
+	const [isReady, setIsReady] = React.useState(false);
+	const loadMe = useAuthStore((state) => state.loadMe);
+	const prepareApp = React.useCallback(() => loadMe(), [loadMe]);
 
-	if (!isWarmedUp) {
-		return <WarmUpSplash onReady={() => setIsWarmedUp(true)} />;
+	if (!isReady) {
+		return <WarmUpSplash prepareApp={prepareApp} onReady={() => setIsReady(true)} />;
 	}
 
 	return (

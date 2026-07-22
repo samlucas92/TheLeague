@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Trophy } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -6,22 +5,14 @@ import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
 
 export function AppLayout() {
-	const { user, isLoading, loadMe, setUser } = useAuthStore();
+	const { user, setUser } = useAuthStore();
 	const navigate = useNavigate();
 	const location = useLocation();
-
-	useEffect(() => {
-		loadMe();
-	}, [loadMe]);
 
 	async function signout() {
 		await authService.signout();
 		setUser(null);
 		navigate('/login');
-	}
-
-	if (isLoading) {
-		return <main className="grid min-h-screen place-items-center text-sm text-slate-600">Loading...</main>;
 	}
 
 	if (!user) {
