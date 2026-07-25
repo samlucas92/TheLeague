@@ -79,7 +79,7 @@ export function LeagueWorkspace() {
 	}
 
 	return (
-		<div className="grid gap-5">
+		<div className="grid gap-5 pb-24 sm:pb-0">
 			<PageHeader
 				title={league.name}
 				description={league.description ?? undefined}
