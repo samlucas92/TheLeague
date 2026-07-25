@@ -12,8 +12,8 @@ const tabs = [
 	{ to: 'admin', label: 'Admin', icon: Settings }
 ];
 
-const mobilePrimaryTabs = tabs.filter((tab) => tab.to === '' || tab.to === 'points' || tab.to === 'challenges');
-const mobileMoreTabs = tabs.filter((tab) => tab.to === 'leaderboard' || tab.to === 'submissions' || tab.to === 'members' || tab.to === 'admin');
+const mobilePrimaryTabs = tabs.filter((tab) => tab.to === '' || tab.to === 'leaderboard' || tab.to === 'points');
+const mobileMoreTabs = tabs.filter((tab) => tab.to === 'challenges' || tab.to === 'submissions' || tab.to === 'members' || tab.to === 'admin');
 
 export function LeagueNavigation() {
 	const [isMoreOpen, setIsMoreOpen] = useState(false);
