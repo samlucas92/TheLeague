@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useOutletContext, useParams } from 'react-router-dom';
 import { Check, Copy, Mail, MessageCircle, Pencil, Plus, Send, Share2, Trash2, X } from 'lucide-react';
 import { Button } from '../components/Button';
+import { ConfirmationModal } from '../components/ConfirmationModal';
 import { CopyJoinCodeBadge } from '../components/CopyJoinCodeBadge';
 import { Field, SelectInput, TextArea, TextInput } from '../components/FormField';
 import { LeagueNavigation } from '../components/LeagueNavigation';
@@ -232,6 +233,7 @@ export function PointsFeedPage() {
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(true);
 	const [deletingAllocationId, setDeletingAllocationId] = useState<string | null>(null);
+	const [confirmingDeleteItem, setConfirmingDeleteItem] = useState<PointsFeedItem | null>(null);
 	const canManagePoints = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 	const sourceOptions = useMemo(() => Array.from(new Set(items.map((item) => item.source))).sort(), [items]);
 	const pageSize = 8;
@@ -264,10 +266,6 @@ export function PointsFeedPage() {
 	}, [kindFilter, memberFilter, sourceFilter]);
 
 	async function deletePoints(item: PointsFeedItem) {
-		if (!window.confirm('Delete this point entry?')) {
-			return;
-		}
-
 		setError('');
 		setMessage('');
 		setDeletingAllocationId(item.allocationId);
@@ -325,7 +323,7 @@ export function PointsFeedPage() {
 						actions={canManagePoints ? (
 							<div className="flex flex-wrap justify-end gap-2">
 								<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingItem(item)} aria-label="Edit points"><Pencil size={16} /></Button>
-								<Button type="button" variant="danger" className="px-3" loading={deletingAllocationId === item.allocationId} onClick={() => deletePoints(item)} aria-label="Delete points"><Trash2 size={16} /></Button>
+								<Button type="button" variant="danger" className="px-3" loading={deletingAllocationId === item.allocationId} onClick={() => setConfirmingDeleteItem(item)} aria-label="Delete points"><Trash2 size={16} /></Button>
 							</div>
 						) : undefined}
 					/>
@@ -359,6 +357,24 @@ export function PointsFeedPage() {
 			{selectedItem ? (
 				<PointDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 			) : null}
+			{confirmingDeleteItem ? (
+				<ConfirmationModal
+					open
+					title="Delete point entry?"
+					description={
+						<p>
+							Delete the {confirmingDeleteItem.points >= 0 ? 'award' : 'deduction'} for <span className="font-semibold text-ink">{confirmingDeleteItem.displayName}</span>? This will remove it from the points feed and leaderboard total.
+						</p>
+					}
+					confirmLabel="Delete entry"
+					loading={deletingAllocationId === confirmingDeleteItem.allocationId}
+					onCancel={() => setConfirmingDeleteItem(null)}
+					onConfirm={async () => {
+						await deletePoints(confirmingDeleteItem);
+						setConfirmingDeleteItem(null);
+					}}
+				/>
+			) : null}
 		</div>
 	);
 }
@@ -374,6 +390,7 @@ export function ChallengesPage() {
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(true);
 	const [pendingAction, setPendingAction] = useState<string | null>(null);
+	const [confirmingDeleteChallenge, setConfirmingDeleteChallenge] = useState<Challenge | null>(null);
 	const pageSize = 5;
 	const totalPages = Math.max(1, Math.ceil(challenges.length / pageSize));
 	const pagedChallenges = challenges.slice((page - 1) * pageSize, page * pageSize);
@@ -421,10 +438,6 @@ export function ChallengesPage() {
 	}
 
 	async function deleteChallenge(challenge: Challenge) {
-		if (!window.confirm('Delete this challenge?')) {
-			return;
-		}
-
 		setError('');
 		setMessage('');
 		setPendingAction(`${challenge.id}:delete`);
@@ -481,7 +494,7 @@ export function ChallengesPage() {
 									{canMaintainChallenge ? (
 										<span className="flex gap-2" onClick={(event) => event.stopPropagation()}>
 											<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingChallenge(challenge)} aria-label="Edit challenge"><Pencil size={16} /></Button>
-											<Button type="button" variant="danger" className="px-3" loading={pendingAction === `${challenge.id}:delete`} onClick={() => deleteChallenge(challenge)} aria-label="Delete challenge"><Trash2 size={16} /></Button>
+											<Button type="button" variant="danger" className="px-3" loading={pendingAction === `${challenge.id}:delete`} onClick={() => setConfirmingDeleteChallenge(challenge)} aria-label="Delete challenge"><Trash2 size={16} /></Button>
 										</span>
 									) : null}
 								</div>
@@ -605,6 +618,24 @@ export function ChallengesPage() {
 					</Modal>
 				);
 			})() : null}
+			{confirmingDeleteChallenge ? (
+				<ConfirmationModal
+					open
+					title="Delete challenge?"
+					description={
+						<p>
+							Delete <span className="font-semibold text-ink">{confirmingDeleteChallenge.name}</span>? Existing point entries will stay in the feed, but the challenge itself will no longer be available.
+						</p>
+					}
+					confirmLabel="Delete challenge"
+					loading={pendingAction === `${confirmingDeleteChallenge.id}:delete`}
+					onCancel={() => setConfirmingDeleteChallenge(null)}
+					onConfirm={async () => {
+						await deleteChallenge(confirmingDeleteChallenge);
+						setConfirmingDeleteChallenge(null);
+					}}
+				/>
+			) : null}
 		</div>
 	);
 }
@@ -619,6 +650,7 @@ export function AdminPage() {
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const [pendingAction, setPendingAction] = useState<string | null>(null);
+	const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
 	const canManageLeague = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 	const joinModeOptions = ['OpenWithCode', 'ApprovalRequired', 'InviteOnly', 'Closed'];
 
@@ -685,10 +717,6 @@ export function AdminPage() {
 	}
 
 	async function regenerateJoinCode() {
-		if (!window.confirm('Regenerate the join code? Existing shared links and codes will stop working.')) {
-			return;
-		}
-
 		setError('');
 		setMessage('');
 		setPendingAction('join-code');
@@ -733,7 +761,7 @@ export function AdminPage() {
 							Anonymous public view enabled
 						</label>
 						<div className="flex flex-wrap justify-between gap-2">
-							<Button type="button" variant="secondary" loading={pendingAction === 'join-code'} onClick={regenerateJoinCode}>Regenerate join code</Button>
+							<Button type="button" variant="secondary" loading={pendingAction === 'join-code'} onClick={() => setIsRegenerateConfirmOpen(true)}>Regenerate join code</Button>
 							<Button type="submit" icon={<Check size={16} />} loading={pendingAction === 'settings'} loadingLabel="Saving...">Save settings</Button>
 						</div>
 					</form>
@@ -761,6 +789,19 @@ export function AdminPage() {
 			</section>
 			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+			<ConfirmationModal
+				open={isRegenerateConfirmOpen}
+				title="Regenerate join code?"
+				description={<p>Existing shared links and join codes will stop working. Anyone with the old code will need the new one.</p>}
+				confirmLabel="Regenerate code"
+				variant="primary"
+				loading={pendingAction === 'join-code'}
+				onCancel={() => setIsRegenerateConfirmOpen(false)}
+				onConfirm={async () => {
+					await regenerateJoinCode();
+					setIsRegenerateConfirmOpen(false);
+				}}
+			/>
 		</div>
 	);
 }
@@ -777,6 +818,7 @@ export function MembersPage() {
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const [pendingAction, setPendingAction] = useState<string | null>(null);
+	const [confirmingRemoveMember, setConfirmingRemoveMember] = useState<Member | null>(null);
 	const currentMember = members.find((member) => member.userId === user?.id);
 	const isOwner = currentMember?.role === 'Owner';
 	const canManageMembers = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
@@ -829,10 +871,6 @@ export function MembersPage() {
 	}
 
 	async function removeMember(member: Member) {
-		if (!window.confirm(`Remove ${member.displayName} from this league? Their existing point history will stay in the feed.`)) {
-			return;
-		}
-
 		setError('');
 		setMessage('');
 		setPendingAction(`${member.id}:remove`);
@@ -906,7 +944,7 @@ export function MembersPage() {
 									icon={<Trash2 size={16} />}
 									loading={pendingAction === `${member.id}:remove`}
 									disabled={member.id === currentMember?.id || (!isOwner && (member.role === 'Owner' || member.role === 'Admin'))}
-									onClick={() => removeMember(member)}
+									onClick={() => setConfirmingRemoveMember(member)}
 								>
 									Remove
 								</Button>
@@ -947,6 +985,24 @@ export function MembersPage() {
 			) : null}
 			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+			{confirmingRemoveMember ? (
+				<ConfirmationModal
+					open
+					title="Remove member?"
+					description={
+						<p>
+							Remove <span className="font-semibold text-ink">{confirmingRemoveMember.displayName}</span> from this league? Their existing point history will stay in the feed.
+						</p>
+					}
+					confirmLabel="Remove member"
+					loading={pendingAction === `${confirmingRemoveMember.id}:remove`}
+					onCancel={() => setConfirmingRemoveMember(null)}
+					onConfirm={async () => {
+						await removeMember(confirmingRemoveMember);
+						setConfirmingRemoveMember(null);
+					}}
+				/>
+			) : null}
 		</div>
 	);
 }
