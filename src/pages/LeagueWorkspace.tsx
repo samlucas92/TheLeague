@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useOutletContext, useParams } from 'react-router-dom';
 import { Check, Copy, Mail, MessageCircle, Pencil, Plus, Send, Share2, Trash2, X } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -201,9 +201,24 @@ export function PointsFeedPage() {
 	const { league, members, currentMember, dataVersion, openAddPointsModal } = useWorkspace();
 	const [items, setItems] = useState<PointsFeedItem[]>([]);
 	const [editingItem, setEditingItem] = useState<PointsFeedItem | null>(null);
+	const [selectedItem, setSelectedItem] = useState<PointsFeedItem | null>(null);
+	const [memberFilter, setMemberFilter] = useState('all');
+	const [sourceFilter, setSourceFilter] = useState('all');
+	const [kindFilter, setKindFilter] = useState('all');
+	const [page, setPage] = useState(1);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const canManagePoints = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
+	const sourceOptions = useMemo(() => Array.from(new Set(items.map((item) => item.source))).sort(), [items]);
+	const pageSize = 8;
+	const filteredItems = useMemo(() => items.filter((item) => {
+		const matchesMember = memberFilter === 'all' || item.leagueMemberId === memberFilter;
+		const matchesSource = sourceFilter === 'all' || item.source === sourceFilter;
+		const matchesKind = kindFilter === 'all' || (kindFilter === 'challenge' ? Boolean(item.challengeName) : !item.challengeName);
+		return matchesMember && matchesSource && matchesKind;
+	}), [items, kindFilter, memberFilter, sourceFilter]);
+	const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+	const pagedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
 	async function refreshPoints() {
 		setItems(await leagueService.pointsFeed(league.id));
@@ -212,6 +227,10 @@ export function PointsFeedPage() {
 	useEffect(() => {
 		refreshPoints();
 	}, [league.id, dataVersion]);
+
+	useEffect(() => {
+		setPage(1);
+	}, [kindFilter, memberFilter, sourceFilter]);
 
 	async function deletePoints(item: PointsFeedItem) {
 		if (!window.confirm('Delete this point entry?')) {
@@ -238,16 +257,38 @@ export function PointsFeedPage() {
 						<p className="text-sm text-slate-600">Every official score change appears here.</p>
 					</div>
 					<div className="flex items-center gap-2">
-						<StatusBadge label={`${items.length} entries`} />
+						<StatusBadge label={`${filteredItems.length} of ${items.length} entries`} />
 						<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
 					</div>
 				</div>
-				{items.map((item) => (
+				<div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-3">
+					<Field label="Member">
+						<SelectInput value={memberFilter} onChange={(event) => setMemberFilter(event.target.value)}>
+							<option value="all">All members</option>
+							{members.map((member) => <option key={member.id} value={member.id}>{member.displayName}</option>)}
+						</SelectInput>
+					</Field>
+					<Field label="Source">
+						<SelectInput value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+							<option value="all">All sources</option>
+							{sourceOptions.map((source) => <option key={source} value={source}>{formatPointSource(source)}</option>)}
+						</SelectInput>
+					</Field>
+					<Field label="Type">
+						<SelectInput value={kindFilter} onChange={(event) => setKindFilter(event.target.value)}>
+							<option value="all">Manual and challenge</option>
+							<option value="manual">Manual points</option>
+							<option value="challenge">Challenge points</option>
+						</SelectInput>
+					</Field>
+				</div>
+				{pagedItems.map((item) => (
 					<FeedLine
 						key={item.allocationId}
 						item={item}
+						onOpen={() => setSelectedItem(item)}
 						actions={canManagePoints ? (
-							<div className="flex gap-2">
+							<div className="flex flex-wrap justify-end gap-2">
 								<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingItem(item)} aria-label="Edit points"><Pencil size={16} /></Button>
 								<Button type="button" variant="danger" className="px-3" onClick={() => deletePoints(item)} aria-label="Delete points"><Trash2 size={16} /></Button>
 							</div>
@@ -255,6 +296,14 @@ export function PointsFeedPage() {
 					/>
 				))}
 				{items.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No official points yet.</div> : null}
+				{items.length > 0 && filteredItems.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No points match those filters.</div> : null}
+				{filteredItems.length > pageSize ? (
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<Button variant="secondary" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</Button>
+						<StatusBadge label={`Page ${page} of ${totalPages}`} />
+						<Button variant="secondary" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>Next</Button>
+					</div>
+				) : null}
 			</section>
 			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
@@ -271,6 +320,9 @@ export function PointsFeedPage() {
 						await refreshPoints();
 					}}
 				/>
+			) : null}
+			{selectedItem ? (
+				<PointDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
 			) : null}
 		</div>
 	);
@@ -1332,21 +1384,102 @@ function LeaderboardLine({ row }: { row: LeaderboardRow }) {
 	);
 }
 
-function FeedLine({ item, actions }: { item: PointsFeedItem; actions?: ReactNode }) {
+function PointDetailModal({ item, onClose }: { item: PointsFeedItem; onClose: () => void }) {
 	const positive = item.points >= 0;
 	return (
-		<article className="rounded-lg border border-slate-200 bg-white p-4">
+		<Modal
+			open
+			title={`${item.displayName} ${positive ? 'earned' : 'lost'} ${Math.abs(item.points)} points`}
+			description={getFeedAttribution(item)}
+			onClose={onClose}
+		>
+			<div className="grid gap-4">
+				<div className="grid gap-3 sm:grid-cols-2">
+					<div className={positive ? 'rounded-md bg-emerald-50 p-3' : 'rounded-md bg-red-50 p-3'}>
+						<p className={positive ? 'text-xs font-bold uppercase text-emerald-800' : 'text-xs font-bold uppercase text-red-800'}>Points</p>
+						<p className={positive ? 'mt-1 text-3xl font-bold text-emerald-900' : 'mt-1 text-3xl font-bold text-red-900'}>{positive ? '+' : ''}{item.points}</p>
+					</div>
+					<div className="rounded-md bg-slate-50 p-3">
+						<p className="text-xs font-bold uppercase text-slate-500">Source</p>
+						<p className="mt-1 font-bold text-ink">{formatPointSource(item.source)}</p>
+						<p className="mt-1 text-sm text-slate-600">{item.challengeName ?? 'Manual points'}</p>
+					</div>
+				</div>
+				<div>
+					<p className="text-sm font-bold text-ink">Reason</p>
+					<p className="mt-1 whitespace-pre-wrap rounded-md bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-700">{item.reason}</p>
+				</div>
+				<div className="grid gap-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+					<p><span className="font-semibold text-ink">Member:</span> {item.displayName}</p>
+					<p><span className="font-semibold text-ink">{getAttributionLabel(item)}:</span> {item.awardedByName}</p>
+					<p><span className="font-semibold text-ink">Date:</span> {new Date(item.awardedAt).toLocaleString()}</p>
+				</div>
+				<div className="flex justify-end">
+					<Button type="button" onClick={onClose}>Done</Button>
+				</div>
+			</div>
+		</Modal>
+	);
+}
+
+function FeedLine({ item, actions, onOpen }: { item: PointsFeedItem; actions?: ReactNode; onOpen?: () => void }) {
+	const positive = item.points >= 0;
+	return (
+		<article
+			className="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-ink/30 hover:shadow-sm"
+			onClick={onOpen}
+			role={onOpen ? 'button' : undefined}
+			tabIndex={onOpen ? 0 : undefined}
+			onKeyDown={(event) => {
+				if (onOpen && (event.key === 'Enter' || event.key === ' ')) {
+					onOpen();
+				}
+			}}
+		>
 			<div className="flex flex-wrap items-start justify-between gap-3">
 				<div>
 					<p className="font-bold text-ink">{item.displayName} {positive ? 'earned' : 'lost'} {Math.abs(item.points)} points</p>
 					<p className="text-sm text-slate-600">{item.reason}</p>
-					<p className="mt-1 text-xs text-slate-500">{item.challengeName ?? item.source} · Awarded by {item.awardedByName}</p>
+					<p className="mt-1 text-xs text-slate-500">{getFeedAttribution(item)}</p>
 				</div>
 				<div className="flex items-center gap-2">
 					<StatusBadge label={`${positive ? '+' : ''}${item.points}`} tone={positive ? 'good' : 'bad'} />
-					{actions}
+					{actions ? <span onClick={(event) => event.stopPropagation()}>{actions}</span> : null}
 				</div>
 			</div>
 		</article>
 	);
+}
+
+function getFeedAttribution(item: PointsFeedItem) {
+	const source = formatPointSource(item.source);
+	const context = item.challengeName ?? 'Manual points';
+	return `${context} · ${source} · ${getAttributionLabel(item)} ${item.awardedByName}`;
+}
+
+function getAttributionLabel(item: PointsFeedItem) {
+	if (item.source === 'ApprovedSubmission') {
+		return 'Requested by';
+	}
+
+	if (item.source === 'Adjustment') {
+		return 'Adjusted by';
+	}
+
+	if (item.challengeName) {
+		return 'Confirmed by';
+	}
+
+	if (item.source === 'AdminAward' || item.source === 'AdminPenalty') {
+		return 'Created by';
+	}
+
+	return 'Recorded by';
+}
+
+function formatPointSource(source: string) {
+	return source
+		.replace(/([a-z])([A-Z])/g, '$1 $2')
+		.replace(/^Admin /, '')
+		.trim();
 }
