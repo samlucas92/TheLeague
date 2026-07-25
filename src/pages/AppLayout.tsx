@@ -1,5 +1,5 @@
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Trophy } from 'lucide-react';
+import { Trophy, UserCircle } from 'lucide-react';
 import { Button } from '../components/Button';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../store/authStore';
@@ -25,7 +25,8 @@ export function AppLayout() {
 				<div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
 					<Link to="/leagues" className="inline-flex items-center gap-2 font-bold text-ink"><Trophy size={22} /> The League</Link>
 					<div className="flex items-center gap-3">
-						<span className="hidden text-sm text-slate-600 sm:inline">{user.name}</span>
+						<Link to="/account" className="hidden text-sm font-semibold text-slate-600 hover:text-ink sm:inline">{user.name}</Link>
+						<Link to="/account" className="sm:hidden" aria-label="Account"><Button type="button" variant="ghost" className="px-2"><UserCircle size={20} /></Button></Link>
 						<Button variant="secondary" onClick={signout}>Sign out</Button>
 					</div>
 				</div>

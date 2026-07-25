@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
+import { AccountPage } from './pages/AccountPage';
 import { AppLayout } from './pages/AppLayout';
 import { LoginPage, RegisterPage } from './pages/AuthPages';
 import { CreateLeaguePage, JoinLeaguePage } from './pages/CreateJoinPages';
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
 		errorElement: <AppErrorPage />,
 		children: [
 			{ index: true, element: <Navigate to="/leagues" replace /> },
+			{ path: 'account', element: <AccountPage /> },
 			{ path: 'leagues', element: <LeagueListPage /> },
 			{ path: 'leagues/create', element: <CreateLeaguePage /> },
 			{ path: 'join', element: <JoinLeaguePage /> },

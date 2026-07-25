@@ -13,6 +13,8 @@ export const authService = {
 		withPersistedToken(postJson<LoginResponse>('/auth/register', { name, emailAddress, password })),
 	login: (emailAddress: string, password: string) =>
 		withPersistedToken(postJson<LoginResponse>('/auth/login', { emailAddress, password })),
+	changePassword: (currentPassword: string, newPassword: string) =>
+		postJson<void>('/auth/change-password', { currentPassword, newPassword }),
 	signout: async () => {
 		try {
 			await postJson<void>('/auth/signout');
