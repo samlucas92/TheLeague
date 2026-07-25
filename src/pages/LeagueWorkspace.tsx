@@ -16,6 +16,8 @@ type WorkspaceContext = {
 	league: League;
 	members: Member[];
 	currentMember?: Member;
+	refreshLeague: () => Promise<League>;
+	setLeague: (league: League) => void;
 	refreshMembers: () => Promise<void>;
 	dataVersion: number;
 	openAddPointsModal: () => void;
@@ -38,6 +40,16 @@ export function LeagueWorkspace() {
 		if (leagueId) {
 			setMembers(await leagueService.members(leagueId));
 		}
+	}
+
+	async function refreshLeague() {
+		if (!leagueId) {
+			throw new Error('League id is missing.');
+		}
+
+		const nextLeague = await leagueService.get(leagueId);
+		setLeague(nextLeague);
+		return nextLeague;
 	}
 
 	useEffect(() => {
@@ -83,6 +95,8 @@ export function LeagueWorkspace() {
 					league,
 					members,
 					currentMember,
+					refreshLeague,
+					setLeague,
 					refreshMembers,
 					dataVersion,
 					openAddPointsModal: () => setIsAddPointsOpen(true),
@@ -487,9 +501,16 @@ export function ChallengesPage() {
 }
 
 export function AdminPage() {
-	const { league } = useWorkspace();
+	const { league, currentMember, setLeague } = useWorkspace();
 	const [pending, setPending] = useState<Submission[]>([]);
+	const [name, setName] = useState(league.name);
+	const [description, setDescription] = useState(league.description ?? '');
+	const [joinMode, setJoinMode] = useState(league.joinMode);
+	const [publicViewEnabled, setPublicViewEnabled] = useState(league.publicViewEnabled);
 	const [message, setMessage] = useState('');
+	const [error, setError] = useState('');
+	const canManageLeague = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
+	const joinModeOptions = ['OpenWithCode', 'ApprovalRequired', 'InviteOnly', 'Closed'];
 
 	async function refresh() {
 		setPending(await leagueService.pendingSubmissions(league.id));
@@ -500,6 +521,7 @@ export function AdminPage() {
 	}, [league.id]);
 
 	async function approve(submission: Submission) {
+		setError('');
 		await leagueService.approveSubmission(league.id, submission.id, {
 			approvedPoints: submission.requestedPoints,
 			publicReviewReason: submission.publicReason
@@ -509,6 +531,7 @@ export function AdminPage() {
 	}
 
 	async function reject(submission: Submission) {
+		setError('');
 		await leagueService.rejectSubmission(league.id, submission.id, {
 			publicReviewReason: submission.publicReason
 		});
@@ -516,8 +539,76 @@ export function AdminPage() {
 		await refresh();
 	}
 
+	async function saveSettings(event: FormEvent) {
+		event.preventDefault();
+		setError('');
+		setMessage('');
+		try {
+			const updated = await leagueService.updateSettings(league.id, {
+				name,
+				description,
+				joinMode,
+				publicViewEnabled
+			});
+			setLeague(updated);
+			setMessage('League settings saved.');
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not save league settings.');
+		}
+	}
+
+	async function regenerateJoinCode() {
+		if (!window.confirm('Regenerate the join code? Existing shared links and codes will stop working.')) {
+			return;
+		}
+
+		setError('');
+		setMessage('');
+		try {
+			const updated = await leagueService.regenerateJoinCode(league.id);
+			setLeague(updated);
+			setMessage(`Join code regenerated: ${updated.joinCode}`);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not regenerate join code.');
+		}
+	}
+
 	return (
 		<div className="grid gap-5">
+			{canManageLeague ? (
+				<section className="rounded-lg border border-slate-200 bg-white p-5">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h2 className="text-lg font-bold text-ink">League settings</h2>
+							<p className="mt-1 text-sm text-slate-600">Manage the league details, joins, and public view.</p>
+						</div>
+						<StatusBadge label={`Join code ${league.joinCode}`} tone="good" />
+					</div>
+					<form className="mt-5 grid gap-4" onSubmit={saveSettings}>
+						<div className="grid gap-4 md:grid-cols-2">
+							<Field label="Name">
+								<TextInput value={name} onChange={(event) => setName(event.target.value)} required />
+							</Field>
+							<Field label="Join mode">
+								<SelectInput value={joinMode} onChange={(event) => setJoinMode(event.target.value)}>
+									{joinModeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+								</SelectInput>
+							</Field>
+						</div>
+						<Field label="Description">
+							<TextArea value={description} onChange={(event) => setDescription(event.target.value)} />
+						</Field>
+						<label className="flex items-center gap-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+							<input type="checkbox" checked={publicViewEnabled} onChange={(event) => setPublicViewEnabled(event.target.checked)} />
+							Anonymous public view enabled
+						</label>
+						<div className="flex flex-wrap justify-between gap-2">
+							<Button type="button" variant="secondary" onClick={regenerateJoinCode}>Regenerate join code</Button>
+							<Button type="submit" icon={<Check size={16} />}>Save settings</Button>
+						</div>
+					</form>
+				</section>
+			) : null}
 			<section className="rounded-lg border border-slate-200 bg-white p-5">
 				<h2 className="text-lg font-bold text-ink">Pending approvals</h2>
 				<div className="mt-4 grid gap-3">
@@ -539,6 +630,7 @@ export function AdminPage() {
 				</div>
 			</section>
 			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
+			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 		</div>
 	);
 }

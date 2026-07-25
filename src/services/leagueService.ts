@@ -7,6 +7,13 @@ export const leagueService = {
 	create: (input: { name: string; description?: string; presetType: string; joinMode: string }) =>
 		postJson<League>('/leagues', input),
 	get: (leagueId: string) => apiRequest<League>(`/leagues/${leagueId}`),
+	updateSettings: (leagueId: string, input: { name: string; description?: string; joinMode: string; publicViewEnabled: boolean }) =>
+		apiRequest<League>(`/leagues/${leagueId}`, {
+			method: 'PUT',
+			body: JSON.stringify(input)
+		}),
+	regenerateJoinCode: (leagueId: string) =>
+		postJson<League>(`/leagues/${leagueId}/join-code/regenerate`),
 	previewJoin: (joinCode: string) => postJson<JoinPreview>('/leagues/join-preview', { joinCode }),
 	join: (joinCode: string, displayName: string) => postJson<Member>('/leagues/join', { joinCode, displayName }),
 	members: (leagueId: string) => apiRequest<Member[]>(`/leagues/${leagueId}/members`),

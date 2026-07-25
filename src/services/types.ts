@@ -28,6 +28,7 @@ export type League = {
 	status: string;
 	joinMode: string;
 	presetType: string;
+	publicViewEnabled: boolean;
 	showPendingPointsOnLeaderboard: boolean;
 };
 
