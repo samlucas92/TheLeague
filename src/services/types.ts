@@ -126,3 +126,14 @@ export type PublicLeagueView = {
 	pointsFeed: PointsFeedItem[];
 	challenges: Challenge[];
 };
+
+export type LeagueAuditItem = {
+	id: string;
+	action: string;
+	performedByUserId: string;
+	performedByName: string;
+	entityType: string;
+	entityId?: string | null;
+	summary: string;
+	createdAt: string;
+};

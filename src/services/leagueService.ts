@@ -1,5 +1,5 @@
 import { apiRequest, postJson } from './api';
-import type { Challenge, JoinPreview, League, LeagueSummary, LeaderboardRow, ManualPointsResult, Member, PointsFeedItem, PublicLeagueView, Submission } from './types';
+import type { Challenge, JoinPreview, League, LeagueAuditItem, LeagueSummary, LeaderboardRow, ManualPointsResult, Member, PointsFeedItem, PublicLeagueView, Submission } from './types';
 
 export const leagueService = {
 	list: () => apiRequest<LeagueSummary[]>('/leagues'),
@@ -68,6 +68,7 @@ export const leagueService = {
 		}),
 	deletePoints: (leagueId: string, allocationId: string) =>
 		apiRequest<void>(`/leagues/${leagueId}/allocations/${allocationId}`, { method: 'DELETE' }),
+	audit: (leagueId: string) => apiRequest<LeagueAuditItem[]>(`/leagues/${leagueId}/audit`),
 	leaderboard: (leagueId: string) => apiRequest<LeaderboardRow[]>(`/leagues/${leagueId}/leaderboard`),
 	pointsFeed: (leagueId: string) => apiRequest<PointsFeedItem[]>(`/leagues/${leagueId}/points-feed`)
 };

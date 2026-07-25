@@ -10,7 +10,7 @@ import { Modal } from '../components/Modal';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { leagueService } from '../services/leagueService';
-import type { Challenge, League, LeaderboardRow, Member, PointsFeedItem, Submission } from '../services/types';
+import type { Challenge, League, LeagueAuditItem, LeaderboardRow, Member, PointsFeedItem, Submission } from '../services/types';
 import { useAuthStore } from '../store/authStore';
 
 type WorkspaceContext = {
@@ -643,6 +643,7 @@ export function ChallengesPage() {
 export function AdminPage() {
 	const { league, currentMember, setLeague } = useWorkspace();
 	const [pending, setPending] = useState<Submission[]>([]);
+	const [audit, setAudit] = useState<LeagueAuditItem[]>([]);
 	const [name, setName] = useState(league.name);
 	const [description, setDescription] = useState(league.description ?? '');
 	const [joinMode, setJoinMode] = useState(league.joinMode);
@@ -655,7 +656,12 @@ export function AdminPage() {
 	const joinModeOptions = ['OpenWithCode', 'ApprovalRequired', 'InviteOnly', 'Closed'];
 
 	async function refresh() {
-		setPending(await leagueService.pendingSubmissions(league.id));
+		const [pendingItems, auditItems] = await Promise.all([
+			leagueService.pendingSubmissions(league.id),
+			leagueService.audit(league.id)
+		]);
+		setPending(pendingItems ?? []);
+		setAudit(auditItems ?? []);
 	}
 
 	useEffect(() => {
@@ -767,8 +773,8 @@ export function AdminPage() {
 					</form>
 				</section>
 			) : null}
-			<section className="rounded-lg border border-slate-200 bg-white p-5">
-				<h2 className="text-lg font-bold text-ink">Pending approvals</h2>
+				<section className="rounded-lg border border-slate-200 bg-white p-5">
+					<h2 className="text-lg font-bold text-ink">Pending approvals</h2>
 				<div className="mt-4 grid gap-3">
 					{pending.map((submission) => (
 						<div key={submission.id} className="rounded-md border border-slate-200 p-3">
@@ -785,9 +791,34 @@ export function AdminPage() {
 						</div>
 					))}
 					{pending.length === 0 ? <p className="text-sm text-slate-600">No pending submissions.</p> : null}
-				</div>
-			</section>
-			{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
+					</div>
+				</section>
+				<section className="rounded-lg border border-slate-200 bg-white p-5">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h2 className="text-lg font-bold text-ink">Recent activity</h2>
+							<p className="mt-1 text-sm text-slate-600">Admin-visible history of league changes and scoring actions.</p>
+						</div>
+						<StatusBadge label={`${audit.length} events`} />
+					</div>
+					<div className="mt-4 grid gap-3">
+						{audit.map((entry) => (
+							<article key={entry.id} className="grid gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+								<div className="min-w-0">
+									<div className="flex flex-wrap items-center gap-2">
+										<StatusBadge label={formatAuditAction(entry.action)} tone={getAuditTone(entry.action)} />
+										<p className="text-sm font-semibold text-ink">{entry.performedByName}</p>
+									</div>
+									<p className="mt-1 text-sm text-slate-700">{entry.summary}</p>
+									<p className="mt-1 text-xs text-slate-500">{entry.entityType}</p>
+								</div>
+								<p className="text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
+							</article>
+						))}
+						{audit.length === 0 ? <p className="text-sm text-slate-600">No activity recorded yet.</p> : null}
+					</div>
+				</section>
+				{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 			<ConfirmationModal
 				open={isRegenerateConfirmOpen}
@@ -1696,6 +1727,28 @@ function getFeedAttribution(item: PointsFeedItem) {
 	const source = formatPointSource(item.source);
 	const context = item.challengeName ?? 'Manual points';
 	return `${context} · ${source} · ${getAttributionLabel(item)} ${item.awardedByName}`;
+}
+
+function formatAuditAction(action: string) {
+	return action
+		.replace(/([a-z])([A-Z])/g, '$1 $2')
+		.trim();
+}
+
+function getAuditTone(action: string): 'neutral' | 'good' | 'warning' | 'bad' {
+	if (action.includes('Deleted') || action.includes('Removed') || action.includes('Rejected') || action.includes('Deducted') || action.includes('Failed')) {
+		return 'bad';
+	}
+
+	if (action.includes('Created') || action.includes('Approved') || action.includes('Awarded') || action.includes('Completed') || action.includes('Linked') || action.includes('Joined')) {
+		return 'good';
+	}
+
+	if (action.includes('Changed') || action.includes('Edited') || action.includes('Regenerated') || action.includes('Updated') || action.includes('Requested')) {
+		return 'warning';
+	}
+
+	return 'neutral';
 }
 
 function getAttributionLabel(item: PointsFeedItem) {
