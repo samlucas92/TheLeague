@@ -10,9 +10,13 @@ import type { LeagueSummary } from '../services/types';
 export function LeagueListPage() {
 	const [leagues, setLeagues] = useState<LeagueSummary[]>([]);
 	const [error, setError] = useState('');
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		leagueService.list().then(setLeagues).catch((err) => setError(err.message));
+		leagueService.list()
+			.then((items) => setLeagues(items ?? []))
+			.catch((err) => setError(err.message))
+			.finally(() => setIsLoading(false));
 	}, []);
 
 	return (
@@ -29,6 +33,7 @@ export function LeagueListPage() {
 			/>
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 			<div className="grid gap-3">
+				{isLoading ? <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">Loading your leagues...</div> : null}
 				{leagues.map((league) => (
 					<Link key={league.id} to={`/leagues/${league.id}`} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-ink/40">
 						<div className="flex flex-wrap items-center justify-between gap-2">
@@ -42,7 +47,7 @@ export function LeagueListPage() {
 						<p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Join code {league.joinCode}</p>
 					</Link>
 				))}
-				{leagues.length === 0 && !error ? (
+				{leagues.length === 0 && !error && !isLoading ? (
 					<div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No leagues yet.</div>
 				) : null}
 			</div>

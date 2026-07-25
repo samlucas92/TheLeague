@@ -131,21 +131,30 @@ export function OverviewPage() {
 	const { league, members, dataVersion, openAddPointsModal, openCreateChallengeModal } = useWorkspace();
 	const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
 	const [feed, setFeed] = useState<PointsFeedItem[]>([]);
+	const [error, setError] = useState('');
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		Promise.all([leagueService.leaderboard(league.id), leagueService.pointsFeed(league.id)]).then(([rows, items]) => {
-			setLeaderboard(rows.slice(0, 3));
-			setFeed(items.slice(0, 5));
-		});
+		setIsLoading(true);
+		setError('');
+		Promise.all([leagueService.leaderboard(league.id), leagueService.pointsFeed(league.id)])
+			.then(([rows, items]) => {
+				setLeaderboard((rows ?? []).slice(0, 3));
+				setFeed((items ?? []).slice(0, 5));
+			})
+			.catch((err) => setError(err instanceof Error ? err.message : 'Could not load overview.'))
+			.finally(() => setIsLoading(false));
 	}, [league.id, dataVersion]);
 
 	return (
 		<div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{error}</p> : null}
 			<section className="rounded-lg border border-slate-200 bg-white p-5">
 				<h2 className="text-lg font-bold text-ink">Top participants</h2>
 				<div className="mt-4 grid gap-2">
+					{isLoading ? <p className="text-sm text-slate-600">Loading leaderboard...</p> : null}
 					{leaderboard.map((row) => <LeaderboardLine key={row.leagueMemberId} row={row} />)}
-					{leaderboard.length === 0 ? <p className="text-sm text-slate-600">No approved points yet.</p> : null}
+					{leaderboard.length === 0 && !isLoading ? <p className="text-sm text-slate-600">No approved points yet.</p> : null}
 				</div>
 				<div className="mt-5 flex gap-2">
 					<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
@@ -156,8 +165,9 @@ export function OverviewPage() {
 			<section className="rounded-lg border border-slate-200 bg-white p-5">
 				<h2 className="text-lg font-bold text-ink">Latest points</h2>
 				<div className="mt-4 grid gap-3">
+					{isLoading ? <p className="text-sm text-slate-600">Loading points...</p> : null}
 					{feed.map((item) => <FeedLine key={item.allocationId} item={item} />)}
-					{feed.length === 0 ? <p className="text-sm text-slate-600">The points feed is waiting for its first approval.</p> : null}
+					{feed.length === 0 && !isLoading ? <p className="text-sm text-slate-600">The points feed is waiting for its first approval.</p> : null}
 				</div>
 			</section>
 			<section className="rounded-lg border border-slate-200 bg-white p-5 lg:col-span-2">
@@ -171,29 +181,41 @@ export function OverviewPage() {
 export function LeaderboardPage() {
 	const { league } = useWorkspace();
 	const [rows, setRows] = useState<LeaderboardRow[]>([]);
+	const [error, setError] = useState('');
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		leagueService.leaderboard(league.id).then(setRows);
+		setIsLoading(true);
+		setError('');
+		leagueService.leaderboard(league.id)
+			.then((items) => setRows(items ?? []))
+			.catch((err) => setError(err instanceof Error ? err.message : 'Could not load leaderboard.'))
+			.finally(() => setIsLoading(false));
 	}, [league.id]);
 
 	return (
-		<section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-			<table className="w-full text-left text-sm">
-				<thead className="bg-slate-50 text-xs uppercase text-slate-500">
-					<tr><th className="p-3">Position</th><th className="p-3">Participant</th><th className="p-3 text-right">Approved</th><th className="p-3 text-right">Pending</th></tr>
-				</thead>
-				<tbody>
-					{rows.map((row) => (
-						<tr key={row.leagueMemberId} className="border-t border-slate-100">
-							<td className="p-3 font-bold">{row.position}</td>
-							<td className="p-3">{row.displayName}</td>
-							<td className="p-3 text-right font-bold">{row.approvedPoints}</td>
-							<td className="p-3 text-right">{row.pendingPoints}</td>
-						</tr>
-					))}
-				</tbody>
-			</table>
-		</section>
+		<div className="grid gap-3">
+			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+			<section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+				<table className="w-full text-left text-sm">
+					<thead className="bg-slate-50 text-xs uppercase text-slate-500">
+						<tr><th className="p-3">Position</th><th className="p-3">Participant</th><th className="p-3 text-right">Approved</th><th className="p-3 text-right">Pending</th></tr>
+					</thead>
+					<tbody>
+						{rows.map((row) => (
+							<tr key={row.leagueMemberId} className="border-t border-slate-100">
+								<td className="p-3 font-bold">{row.position}</td>
+								<td className="p-3">{row.displayName}</td>
+								<td className="p-3 text-right font-bold">{row.approvedPoints}</td>
+								<td className="p-3 text-right">{row.pendingPoints}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+				{isLoading ? <div className="border-t border-slate-100 p-8 text-center text-sm text-slate-600">Loading leaderboard...</div> : null}
+				{rows.length === 0 && !isLoading ? <div className="border-t border-slate-100 p-8 text-center text-sm text-slate-600">No approved points yet.</div> : null}
+			</section>
+		</div>
 	);
 }
 
@@ -208,6 +230,8 @@ export function PointsFeedPage() {
 	const [page, setPage] = useState(1);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
+	const [isLoading, setIsLoading] = useState(true);
+	const [deletingAllocationId, setDeletingAllocationId] = useState<string | null>(null);
 	const canManagePoints = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 	const sourceOptions = useMemo(() => Array.from(new Set(items.map((item) => item.source))).sort(), [items]);
 	const pageSize = 8;
@@ -221,7 +245,14 @@ export function PointsFeedPage() {
 	const pagedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
 	async function refreshPoints() {
-		setItems(await leagueService.pointsFeed(league.id));
+		setIsLoading(true);
+		try {
+			setItems(await leagueService.pointsFeed(league.id) ?? []);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not load points feed.');
+		} finally {
+			setIsLoading(false);
+		}
 	}
 
 	useEffect(() => {
@@ -239,12 +270,15 @@ export function PointsFeedPage() {
 
 		setError('');
 		setMessage('');
+		setDeletingAllocationId(item.allocationId);
 		try {
 			await leagueService.deletePoints(league.id, item.allocationId);
 			setMessage('Point entry deleted.');
 			await refreshPoints();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not delete points.');
+		} finally {
+			setDeletingAllocationId(null);
 		}
 	}
 
@@ -282,6 +316,7 @@ export function PointsFeedPage() {
 						</SelectInput>
 					</Field>
 				</div>
+				{isLoading ? <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">Loading points feed...</div> : null}
 				{pagedItems.map((item) => (
 					<FeedLine
 						key={item.allocationId}
@@ -290,13 +325,13 @@ export function PointsFeedPage() {
 						actions={canManagePoints ? (
 							<div className="flex flex-wrap justify-end gap-2">
 								<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingItem(item)} aria-label="Edit points"><Pencil size={16} /></Button>
-								<Button type="button" variant="danger" className="px-3" onClick={() => deletePoints(item)} aria-label="Delete points"><Trash2 size={16} /></Button>
+								<Button type="button" variant="danger" className="px-3" loading={deletingAllocationId === item.allocationId} onClick={() => deletePoints(item)} aria-label="Delete points"><Trash2 size={16} /></Button>
 							</div>
 						) : undefined}
 					/>
 				))}
-				{items.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No official points yet.</div> : null}
-				{items.length > 0 && filteredItems.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No points match those filters.</div> : null}
+				{items.length === 0 && !isLoading ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No official points yet.</div> : null}
+				{items.length > 0 && filteredItems.length === 0 && !isLoading ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No points match those filters.</div> : null}
 				{filteredItems.length > pageSize ? (
 					<div className="flex flex-wrap items-center justify-between gap-3">
 						<Button variant="secondary" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</Button>
@@ -337,12 +372,21 @@ export function ChallengesPage() {
 	const [page, setPage] = useState(1);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
+	const [isLoading, setIsLoading] = useState(true);
+	const [pendingAction, setPendingAction] = useState<string | null>(null);
 	const pageSize = 5;
 	const totalPages = Math.max(1, Math.ceil(challenges.length / pageSize));
 	const pagedChallenges = challenges.slice((page - 1) * pageSize, page * pageSize);
 
 	async function refreshChallenges() {
-		setChallenges(await leagueService.challenges(league.id));
+		setIsLoading(true);
+		try {
+			setChallenges(await leagueService.challenges(league.id) ?? []);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not load challenges.');
+		} finally {
+			setIsLoading(false);
+		}
 	}
 
 	useEffect(() => {
@@ -350,21 +394,30 @@ export function ChallengesPage() {
 	}, [league.id, dataVersion]);
 
 	async function respond(challenge: Challenge, action: 'accept' | 'reject' | 'complete' | 'fail', targetMemberId?: string) {
-		if (action === 'accept') {
-			await leagueService.acceptChallenge(league.id, challenge.id);
-			setMessage('Challenge accepted.');
-		} else if (action === 'reject') {
-			await leagueService.rejectChallenge(league.id, challenge.id);
-			setMessage('Challenge rejected and penalty applied.');
-		} else if (action === 'complete') {
-			await leagueService.completeChallenge(league.id, challenge.id, targetMemberId);
-			setMessage('Challenge completed and points awarded.');
-		} else {
-			await leagueService.failChallenge(league.id, challenge.id, targetMemberId);
-			setMessage('Challenge failed and penalty applied.');
+		const actionKey = `${challenge.id}:${action}:${targetMemberId ?? 'self'}`;
+		setError('');
+		setPendingAction(actionKey);
+		try {
+			if (action === 'accept') {
+				await leagueService.acceptChallenge(league.id, challenge.id);
+				setMessage('Challenge accepted.');
+			} else if (action === 'reject') {
+				await leagueService.rejectChallenge(league.id, challenge.id);
+				setMessage('Challenge rejected and penalty applied.');
+			} else if (action === 'complete') {
+				await leagueService.completeChallenge(league.id, challenge.id, targetMemberId);
+				setMessage('Challenge completed and points awarded.');
+			} else {
+				await leagueService.failChallenge(league.id, challenge.id, targetMemberId);
+				setMessage('Challenge failed and penalty applied.');
+			}
+			setSelectedChallenge(null);
+			await refreshChallenges();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not update challenge.');
+		} finally {
+			setPendingAction(null);
 		}
-		setSelectedChallenge(null);
-		await refreshChallenges();
 	}
 
 	async function deleteChallenge(challenge: Challenge) {
@@ -374,12 +427,15 @@ export function ChallengesPage() {
 
 		setError('');
 		setMessage('');
+		setPendingAction(`${challenge.id}:delete`);
 		try {
 			await leagueService.deleteChallenge(league.id, challenge.id);
 			setMessage('Challenge deleted.');
 			await refreshChallenges();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not delete challenge.');
+		} finally {
+			setPendingAction(null);
 		}
 	}
 
@@ -396,6 +452,7 @@ export function ChallengesPage() {
 						<Button type="button" icon={<Plus size={16} />} onClick={openCreateChallengeModal}>Create challenge</Button>
 					</div>
 				</div>
+				{isLoading ? <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">Loading challenges...</div> : null}
 				{pagedChallenges.map((challenge) => {
 					const status = getChallengeStatus(challenge, currentMember?.id);
 					const canMaintainChallenge = user?.id === challenge.createdByUserId || currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
@@ -424,20 +481,20 @@ export function ChallengesPage() {
 									{canMaintainChallenge ? (
 										<span className="flex gap-2" onClick={(event) => event.stopPropagation()}>
 											<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingChallenge(challenge)} aria-label="Edit challenge"><Pencil size={16} /></Button>
-											<Button type="button" variant="danger" className="px-3" onClick={() => deleteChallenge(challenge)} aria-label="Delete challenge"><Trash2 size={16} /></Button>
+											<Button type="button" variant="danger" className="px-3" loading={pendingAction === `${challenge.id}:delete`} onClick={() => deleteChallenge(challenge)} aria-label="Delete challenge"><Trash2 size={16} /></Button>
 										</span>
 									) : null}
 								</div>
 							</div>
 							<div className="flex flex-wrap gap-2 text-xs font-semibold text-slate-600">
-								<span className="rounded bg-slate-100 px-2 py-1">Aimed at {challenge.targetNames.join(', ')}</span>
+									<span className="rounded bg-slate-100 px-2 py-1">Aimed at {(challenge.targetNames ?? []).join(', ') || 'No targets'}</span>
 								<span className="rounded bg-emerald-100 px-2 py-1 text-emerald-800">+{challenge.pointsForSuccess} if completed</span>
 								<span className="rounded bg-red-100 px-2 py-1 text-red-800">{challenge.pointsForFailure} if rejected</span>
 							</div>
 						</article>
 					);
 				})}
-				{challenges.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No challenges yet.</div> : null}
+				{challenges.length === 0 && !isLoading ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No challenges yet.</div> : null}
 				{challenges.length > pageSize ? (
 					<div className="flex items-center justify-between">
 						<Button variant="secondary" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</Button>
@@ -479,7 +536,7 @@ export function ChallengesPage() {
 					<Modal
 						open
 						title={selectedChallenge.name}
-						description={`Aimed at ${selectedChallenge.targetNames.join(', ')}`}
+						description={`Aimed at ${(selectedChallenge.targetNames ?? []).join(', ') || 'No targets'}`}
 						onClose={() => setSelectedChallenge(null)}
 					>
 						<div>
@@ -501,8 +558,8 @@ export function ChallengesPage() {
 									</div>
 									{!hasResponded && !hasOutcome ? (
 										<div className="flex flex-wrap justify-end gap-2">
-											<Button type="button" variant="secondary" onClick={() => respond(selectedChallenge, 'reject')} icon={<X size={16} />}>Reject</Button>
-											<Button type="button" onClick={() => respond(selectedChallenge, 'accept')} icon={<Check size={16} />}>Accept</Button>
+											<Button type="button" variant="secondary" loading={pendingAction === `${selectedChallenge.id}:reject:self`} onClick={() => respond(selectedChallenge, 'reject')} icon={<X size={16} />}>Reject</Button>
+											<Button type="button" loading={pendingAction === `${selectedChallenge.id}:accept:self`} onClick={() => respond(selectedChallenge, 'accept')} icon={<Check size={16} />}>Accept</Button>
 										</div>
 									) : null}
 								</div>
@@ -535,8 +592,8 @@ export function ChallengesPage() {
 												</div>
 												{canMarkOutcome ? (
 													<div className="flex flex-wrap justify-end gap-2">
-														<Button type="button" variant="secondary" onClick={() => respond(selectedChallenge, 'fail', outcome.leagueMemberId)} icon={<X size={16} />}>Mark failed</Button>
-														<Button type="button" onClick={() => respond(selectedChallenge, 'complete', outcome.leagueMemberId)} icon={<Check size={16} />}>Mark completed</Button>
+														<Button type="button" variant="secondary" loading={pendingAction === `${selectedChallenge.id}:fail:${outcome.leagueMemberId}`} onClick={() => respond(selectedChallenge, 'fail', outcome.leagueMemberId)} icon={<X size={16} />}>Mark failed</Button>
+														<Button type="button" loading={pendingAction === `${selectedChallenge.id}:complete:${outcome.leagueMemberId}`} onClick={() => respond(selectedChallenge, 'complete', outcome.leagueMemberId)} icon={<Check size={16} />}>Mark completed</Button>
 													</div>
 												) : null}
 											</div>
@@ -561,6 +618,7 @@ export function AdminPage() {
 	const [publicViewEnabled, setPublicViewEnabled] = useState(league.publicViewEnabled);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
+	const [pendingAction, setPendingAction] = useState<string | null>(null);
 	const canManageLeague = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 	const joinModeOptions = ['OpenWithCode', 'ApprovalRequired', 'InviteOnly', 'Closed'];
 
@@ -574,27 +632,42 @@ export function AdminPage() {
 
 	async function approve(submission: Submission) {
 		setError('');
-		await leagueService.approveSubmission(league.id, submission.id, {
-			approvedPoints: submission.requestedPoints,
-			publicReviewReason: submission.publicReason
-		});
-		setMessage('Submission approved and allocated.');
-		await refresh();
+		setPendingAction(`${submission.id}:approve`);
+		try {
+			await leagueService.approveSubmission(league.id, submission.id, {
+				approvedPoints: submission.requestedPoints,
+				publicReviewReason: submission.publicReason
+			});
+			setMessage('Submission approved and allocated.');
+			await refresh();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not approve submission.');
+		} finally {
+			setPendingAction(null);
+		}
 	}
 
 	async function reject(submission: Submission) {
 		setError('');
-		await leagueService.rejectSubmission(league.id, submission.id, {
-			publicReviewReason: submission.publicReason
-		});
-		setMessage('Submission rejected.');
-		await refresh();
+		setPendingAction(`${submission.id}:reject`);
+		try {
+			await leagueService.rejectSubmission(league.id, submission.id, {
+				publicReviewReason: submission.publicReason
+			});
+			setMessage('Submission rejected.');
+			await refresh();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not reject submission.');
+		} finally {
+			setPendingAction(null);
+		}
 	}
 
 	async function saveSettings(event: FormEvent) {
 		event.preventDefault();
 		setError('');
 		setMessage('');
+		setPendingAction('settings');
 		try {
 			const updated = await leagueService.updateSettings(league.id, {
 				name,
@@ -606,6 +679,8 @@ export function AdminPage() {
 			setMessage('League settings saved.');
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not save league settings.');
+		} finally {
+			setPendingAction(null);
 		}
 	}
 
@@ -616,12 +691,15 @@ export function AdminPage() {
 
 		setError('');
 		setMessage('');
+		setPendingAction('join-code');
 		try {
 			const updated = await leagueService.regenerateJoinCode(league.id);
 			setLeague(updated);
 			setMessage(`Join code regenerated: ${updated.joinCode}`);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not regenerate join code.');
+		} finally {
+			setPendingAction(null);
 		}
 	}
 
@@ -655,8 +733,8 @@ export function AdminPage() {
 							Anonymous public view enabled
 						</label>
 						<div className="flex flex-wrap justify-between gap-2">
-							<Button type="button" variant="secondary" onClick={regenerateJoinCode}>Regenerate join code</Button>
-							<Button type="submit" icon={<Check size={16} />}>Save settings</Button>
+							<Button type="button" variant="secondary" loading={pendingAction === 'join-code'} onClick={regenerateJoinCode}>Regenerate join code</Button>
+							<Button type="submit" icon={<Check size={16} />} loading={pendingAction === 'settings'} loadingLabel="Saving...">Save settings</Button>
 						</div>
 					</form>
 				</section>
@@ -672,8 +750,8 @@ export function AdminPage() {
 									<p className="text-sm text-slate-600">{submission.challengeName}: {submission.publicReason}</p>
 								</div>
 								<div className="flex gap-2">
-									<Button variant="secondary" icon={<X size={16} />} onClick={() => reject(submission)}>Reject</Button>
-									<Button icon={<Check size={16} />} onClick={() => approve(submission)}>Approve</Button>
+									<Button variant="secondary" icon={<X size={16} />} loading={pendingAction === `${submission.id}:reject`} onClick={() => reject(submission)}>Reject</Button>
+									<Button icon={<Check size={16} />} loading={pendingAction === `${submission.id}:approve`} onClick={() => approve(submission)}>Approve</Button>
 								</div>
 							</div>
 						</div>
@@ -698,6 +776,7 @@ export function MembersPage() {
 	const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
+	const [pendingAction, setPendingAction] = useState<string | null>(null);
 	const currentMember = members.find((member) => member.userId === user?.id);
 	const isOwner = currentMember?.role === 'Owner';
 	const canManageMembers = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
@@ -719,6 +798,7 @@ export function MembersPage() {
 		event.preventDefault();
 		setError('');
 		setMessage('');
+		setPendingAction('add-member');
 		try {
 			await leagueService.addOfflineMember(league.id, { displayName, emailAddress, role });
 			setDisplayName('');
@@ -728,18 +808,23 @@ export function MembersPage() {
 			await refreshMemberData();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not add member.');
+		} finally {
+			setPendingAction(null);
 		}
 	}
 
 	async function changeRole(member: Member, nextRole: string) {
 		setError('');
 		setMessage('');
+		setPendingAction(`${member.id}:role`);
 		try {
 			await leagueService.changeMemberRole(league.id, member.id, nextRole);
 			setMessage('Role updated.');
 			await refreshMemberData();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not update role.');
+		} finally {
+			setPendingAction(null);
 		}
 	}
 
@@ -750,12 +835,15 @@ export function MembersPage() {
 
 		setError('');
 		setMessage('');
+		setPendingAction(`${member.id}:remove`);
 		try {
 			await leagueService.removeMember(league.id, member.id);
 			setMessage('Member removed.');
 			await refreshMemberData();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not remove member.');
+		} finally {
+			setPendingAction(null);
 		}
 	}
 
@@ -777,7 +865,7 @@ export function MembersPage() {
 								{roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
 							</SelectInput>
 						</Field>
-						<Button type="submit" icon={<Plus size={16} />}>Add</Button>
+						<Button type="submit" icon={<Plus size={16} />} loading={pendingAction === 'add-member'}>Add</Button>
 					</div>
 				</form>
 			) : null}
@@ -798,7 +886,7 @@ export function MembersPage() {
 							{member.emailAddress ? <p className="mt-2 text-sm text-slate-600">{member.emailAddress}</p> : null}
 						</div>
 						{canManageMembers ? (
-							<SelectInput value={member.role} onChange={(event) => changeRole(member, event.target.value)} disabled={!isOwner && (member.role === 'Owner' || member.role === 'Admin')}>
+							<SelectInput value={member.role} onChange={(event) => changeRole(member, event.target.value)} disabled={pendingAction === `${member.id}:role` || (!isOwner && (member.role === 'Owner' || member.role === 'Admin'))}>
 								{(roleOptions.includes(member.role) ? roleOptions : [member.role, ...roleOptions]).map((option) => <option key={option} value={option}>{option}</option>)}
 							</SelectInput>
 						) : (
@@ -816,6 +904,7 @@ export function MembersPage() {
 									type="button"
 									variant="danger"
 									icon={<Trash2 size={16} />}
+									loading={pendingAction === `${member.id}:remove`}
 									disabled={member.id === currentMember?.id || (!isOwner && (member.role === 'Owner' || member.role === 'Admin'))}
 									onClick={() => removeMember(member)}
 								>
@@ -881,6 +970,7 @@ function EditMemberModal({
 	const [emailAddress, setEmailAddress] = useState(member.emailAddress ?? '');
 	const [role, setRole] = useState(member.role);
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	useEffect(() => {
 		setDisplayName(member.displayName);
@@ -892,6 +982,7 @@ function EditMemberModal({
 	async function submit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 		try {
 			await leagueService.updateMember(league.id, member.id, {
 				displayName,
@@ -901,6 +992,7 @@ function EditMemberModal({
 			await onSaved();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not update member.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -921,7 +1013,7 @@ function EditMemberModal({
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-					<Button type="submit" icon={<Check size={16} />}>Save changes</Button>
+					<Button type="submit" icon={<Check size={16} />} loading={isSubmitting} loadingLabel="Saving...">Save changes</Button>
 				</div>
 			</form>
 		</Modal>
@@ -945,6 +1037,7 @@ function LinkOfflineMemberModal({
 }) {
 	const [emailAddress, setEmailAddress] = useState(member.emailAddress ?? '');
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	useEffect(() => {
 		setEmailAddress(member.emailAddress ?? '');
@@ -954,11 +1047,13 @@ function LinkOfflineMemberModal({
 	async function submit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 		try {
 			await leagueService.linkOfflineMember(league.id, member.id, emailAddress);
 			await onSaved();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not link member.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -981,7 +1076,7 @@ function LinkOfflineMemberModal({
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-					<Button type="submit" icon={<Check size={16} />}>Link account</Button>
+					<Button type="submit" icon={<Check size={16} />} loading={isSubmitting} loadingLabel="Linking...">Link account</Button>
 				</div>
 			</form>
 		</Modal>
@@ -991,13 +1086,22 @@ function LinkOfflineMemberModal({
 export function MySubmissionsPage() {
 	const { league } = useWorkspace();
 	const [submissions, setSubmissions] = useState<Submission[]>([]);
+	const [error, setError] = useState('');
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
-		leagueService.mySubmissions(league.id).then(setSubmissions);
+		setIsLoading(true);
+		setError('');
+		leagueService.mySubmissions(league.id)
+			.then((items) => setSubmissions(items ?? []))
+			.catch((err) => setError(err instanceof Error ? err.message : 'Could not load submissions.'))
+			.finally(() => setIsLoading(false));
 	}, [league.id]);
 
 	return (
 		<div className="grid gap-3">
+			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+			{isLoading ? <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">Loading submissions...</div> : null}
 			{submissions.map((submission) => (
 				<div key={submission.id} className="rounded-lg border border-slate-200 bg-white p-4">
 					<div className="flex flex-wrap justify-between gap-2">
@@ -1009,7 +1113,7 @@ export function MySubmissionsPage() {
 					</div>
 				</div>
 			))}
-			{submissions.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No submissions yet.</div> : null}
+			{submissions.length === 0 && !isLoading ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No submissions yet.</div> : null}
 		</div>
 	);
 }
@@ -1033,6 +1137,7 @@ function AddPointsModal({
 	const [points, setPoints] = useState('10');
 	const [reason, setReason] = useState('');
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const appliesImmediately = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 
 	useEffect(() => {
@@ -1044,6 +1149,7 @@ function AddPointsModal({
 	async function submit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 
 		try {
 			const result = await leagueService.addPoints(league.id, {
@@ -1057,6 +1163,7 @@ function AddPointsModal({
 			return result;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not add points.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -1087,7 +1194,7 @@ function AddPointsModal({
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-					<Button type="submit" icon={<Plus size={16} />} disabled={!selectedMemberId}>{appliesImmediately ? 'Add points' : 'Submit request'}</Button>
+					<Button type="submit" icon={<Plus size={16} />} loading={isSubmitting} loadingLabel={appliesImmediately ? 'Adding...' : 'Submitting...'} disabled={!selectedMemberId}>{appliesImmediately ? 'Add points' : 'Submit request'}</Button>
 				</div>
 			</form>
 		</Modal>
@@ -1113,6 +1220,7 @@ function EditPointsModal({
 	const [points, setPoints] = useState(String(item.points));
 	const [reason, setReason] = useState(item.reason);
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	useEffect(() => {
 		setSelectedMemberId(item.leagueMemberId);
@@ -1123,6 +1231,7 @@ function EditPointsModal({
 	async function submit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 		try {
 			await leagueService.updatePoints(league.id, item.allocationId, {
 				leagueMemberId: selectedMemberId,
@@ -1132,6 +1241,7 @@ function EditPointsModal({
 			await onSaved();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not update points.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -1154,7 +1264,7 @@ function EditPointsModal({
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-					<Button type="submit" icon={<Check size={16} />}>Save changes</Button>
+					<Button type="submit" icon={<Check size={16} />} loading={isSubmitting} loadingLabel="Saving...">Save changes</Button>
 				</div>
 			</form>
 		</Modal>
@@ -1180,6 +1290,7 @@ function CreateChallengeModal({
 	const [pointsForSuccess, setPointsForSuccess] = useState('10');
 	const [pointsForFailure, setPointsForFailure] = useState('-10');
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	function toggleTarget(memberId: string) {
 		setTargetMemberIds((current) =>
@@ -1192,6 +1303,7 @@ function CreateChallengeModal({
 	async function submit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 
 		try {
 			await leagueService.createChallenge(league.id, {
@@ -1208,6 +1320,7 @@ function CreateChallengeModal({
 			onClose();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not create challenge.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -1247,7 +1360,7 @@ function CreateChallengeModal({
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-					<Button type="submit" icon={<Plus size={16} />} disabled={targetMemberIds.length === 0}>Create challenge</Button>
+					<Button type="submit" icon={<Plus size={16} />} loading={isSubmitting} loadingLabel="Creating..." disabled={targetMemberIds.length === 0}>Create challenge</Button>
 				</div>
 			</form>
 		</Modal>
@@ -1276,6 +1389,7 @@ function EditChallengeModal({
 	const [pointsForFailure, setPointsForFailure] = useState(String(challenge.pointsForFailure));
 	const [isActive, setIsActive] = useState(challenge.isActive);
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	useEffect(() => {
 		setName(challenge.name);
@@ -1297,6 +1411,7 @@ function EditChallengeModal({
 	async function submit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 		try {
 			await leagueService.updateChallenge(league.id, challenge.id, {
 				name,
@@ -1309,6 +1424,7 @@ function EditChallengeModal({
 			await onSaved();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not update challenge.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -1347,7 +1463,7 @@ function EditChallengeModal({
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-					<Button type="submit" icon={<Check size={16} />} disabled={targetMemberIds.length === 0}>Save changes</Button>
+					<Button type="submit" icon={<Check size={16} />} loading={isSubmitting} loadingLabel="Saving..." disabled={targetMemberIds.length === 0}>Save changes</Button>
 				</div>
 			</form>
 		</Modal>

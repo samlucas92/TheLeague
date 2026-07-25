@@ -13,16 +13,19 @@ export function CreateLeaguePage() {
 	const [presetType, setPresetType] = useState('Custom');
 	const [joinMode, setJoinMode] = useState('OpenWithCode');
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const navigate = useNavigate();
 
 	async function onSubmit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 		try {
 			const league = await leagueService.create({ name, description, presetType, joinMode });
 			navigate(`/leagues/${league.id}`);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not create league.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -45,7 +48,7 @@ export function CreateLeaguePage() {
 					</SelectInput>
 				</Field>
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-				<Button>Create league</Button>
+				<Button loading={isSubmitting} loadingLabel="Creating league...">Create league</Button>
 			</form>
 		</div>
 	);
@@ -56,6 +59,8 @@ export function JoinLeaguePage() {
 	const [displayName, setDisplayName] = useState('');
 	const [preview, setPreview] = useState<JoinPreview | null>(null);
 	const [error, setError] = useState('');
+	const [isPreviewing, setIsPreviewing] = useState(false);
+	const [isJoining, setIsJoining] = useState(false);
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const { user } = useAuthStore();
@@ -80,22 +85,27 @@ export function JoinLeaguePage() {
 	async function previewCode(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsPreviewing(true);
 		try {
 			const normalizedJoinCode = joinCode.trim().toUpperCase();
 			setJoinCode(normalizedJoinCode);
 			setPreview(await leagueService.previewJoin(normalizedJoinCode));
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Join code not found.');
+		} finally {
+			setIsPreviewing(false);
 		}
 	}
 
 	async function joinLeague() {
 		setError('');
+		setIsJoining(true);
 		try {
 			const member = await leagueService.join(joinCode.trim().toUpperCase(), displayName);
 			navigate(`/leagues/${member.leagueId}`);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not join league.');
+			setIsJoining(false);
 		}
 	}
 
@@ -107,7 +117,7 @@ export function JoinLeaguePage() {
 			/>
 			<form className="grid max-w-xl gap-4 rounded-lg border border-slate-200 bg-white p-5" onSubmit={previewCode}>
 				<Field label="Join code"><TextInput value={joinCode} onChange={(event) => setJoinCode(event.target.value)} required /></Field>
-				<Button>Preview league</Button>
+				<Button loading={isPreviewing} loadingLabel="Checking code...">Preview league</Button>
 			</form>
 			{preview ? (
 				<div className="grid max-w-xl gap-4 rounded-lg border border-slate-200 bg-white p-5">
@@ -116,7 +126,7 @@ export function JoinLeaguePage() {
 						<p className="text-sm text-slate-600">Owner: {preview.ownerName}</p>
 					</div>
 					<Field label="Display name"><TextInput value={displayName} onChange={(event) => setDisplayName(event.target.value)} required /></Field>
-					<Button onClick={joinLeague}>Join {preview.requiresApproval ? 'and wait for approval' : 'now'}</Button>
+					<Button onClick={joinLeague} loading={isJoining} loadingLabel="Joining...">Join {preview.requiresApproval ? 'and wait for approval' : 'now'}</Button>
 				</div>
 			) : null}
 			{error ? <p className="max-w-xl rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}

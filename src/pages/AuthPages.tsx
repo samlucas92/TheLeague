@@ -10,6 +10,7 @@ export function LoginPage() {
 	const [emailAddress, setEmailAddress] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { user, setUser } = useAuthStore();
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
@@ -24,12 +25,14 @@ export function LoginPage() {
 	async function onSubmit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 		try {
 			const nextUser = await authService.login(emailAddress, password);
 			setUser(nextUser);
 			navigate(signedInTarget);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Login failed.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -43,7 +46,7 @@ export function LoginPage() {
 					<TextInput type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
 				</Field>
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-				<Button icon={<LogIn size={16} />}>Sign in</Button>
+				<Button icon={<LogIn size={16} />} loading={isSubmitting} loadingLabel="Signing in...">Sign in</Button>
 				{joinCode ? <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">After signing in, you will join with code {joinCode}.</p> : null}
 				<p className="text-sm text-slate-600">
 					New here? <Link className="font-semibold text-ink underline" to={`/register${authSuffix}`}>Create an account</Link>
@@ -58,6 +61,7 @@ export function RegisterPage() {
 	const [emailAddress, setEmailAddress] = useState('');
 	const [password, setPassword] = useState('');
 	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { user, setUser } = useAuthStore();
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
@@ -72,12 +76,14 @@ export function RegisterPage() {
 	async function onSubmit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		setIsSubmitting(true);
 		try {
 			const nextUser = await authService.register(name, emailAddress, password);
 			setUser(nextUser);
 			navigate(signedInTarget);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Registration failed.');
+			setIsSubmitting(false);
 		}
 	}
 
@@ -95,7 +101,7 @@ export function RegisterPage() {
 				</Field>
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				{joinCode ? <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">After creating your account, you will join with code {joinCode}.</p> : null}
-				<Button icon={<UserPlus size={16} />}>Create account</Button>
+				<Button icon={<UserPlus size={16} />} loading={isSubmitting} loadingLabel="Creating account...">Create account</Button>
 				<p className="text-sm text-slate-600">
 					Already registered? <Link className="font-semibold text-ink underline" to={`/login${authSuffix}`}>Sign in</Link>
 				</p>

@@ -13,6 +13,9 @@ export function PublicLeagueViewPage() {
 	const [view, setView] = useState<PublicLeagueView | null>(null);
 	const [codeEntry, setCodeEntry] = useState('');
 	const [error, setError] = useState('');
+	const leaderboard = view?.leaderboard ?? [];
+	const pointsFeed = view?.pointsFeed ?? [];
+	const challenges = view?.challenges ?? [];
 
 	useEffect(() => {
 		if (!joinCode) {
@@ -95,7 +98,7 @@ export function PublicLeagueViewPage() {
 							<tr><th className="p-3">Position</th><th className="p-3">Participant</th><th className="p-3 text-right">Points</th></tr>
 						</thead>
 						<tbody>
-							{view.leaderboard.map((row) => (
+							{leaderboard.map((row) => (
 								<tr key={row.leagueMemberId} className="border-t border-slate-100">
 									<td className="p-3 font-bold">{row.position}</td>
 									<td className="p-3">{row.displayName}</td>
@@ -104,31 +107,32 @@ export function PublicLeagueViewPage() {
 							))}
 						</tbody>
 					</table>
+					{leaderboard.length === 0 ? <div className="border-t border-slate-100 p-8 text-center text-sm text-slate-600">No approved points yet.</div> : null}
 				</section>
 				<section className="grid gap-3">
 					<h2 className="text-lg font-bold text-ink">Points Feed</h2>
-					{view.pointsFeed.map((item) => (
+					{pointsFeed.map((item) => (
 						<article key={item.allocationId} className="rounded-lg border border-slate-200 bg-white p-4">
 							<p className="font-bold text-ink">{item.displayName} {item.points >= 0 ? 'earned' : 'lost'} {Math.abs(item.points)} points</p>
 							<p className="text-sm text-slate-600">{item.reason}</p>
 						</article>
 					))}
-					{view.pointsFeed.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No points yet.</div> : null}
+					{pointsFeed.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No points yet.</div> : null}
 				</section>
 				<section className="grid gap-3">
 					<h2 className="text-lg font-bold text-ink">Challenges</h2>
-					{view.challenges.map((challenge) => (
+					{challenges.map((challenge) => (
 						<article key={challenge.id} className="rounded-lg border border-slate-200 bg-white p-4">
 							<h3 className="font-bold text-ink">{challenge.name}</h3>
 							<p className="mt-1 text-sm text-slate-600">{challenge.description || 'No description.'}</p>
 							<div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-								<span className="rounded bg-slate-100 px-2 py-1">Aimed at {challenge.targetNames.join(', ')}</span>
+								<span className="rounded bg-slate-100 px-2 py-1">Aimed at {(challenge.targetNames ?? []).join(', ') || 'No targets'}</span>
 								<span className="rounded bg-emerald-100 px-2 py-1 text-emerald-800">+{challenge.pointsForSuccess}</span>
 								<span className="rounded bg-red-100 px-2 py-1 text-red-800">{challenge.pointsForFailure}</span>
 							</div>
 						</article>
 					))}
-					{view.challenges.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No challenges yet.</div> : null}
+					{challenges.length === 0 ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No challenges yet.</div> : null}
 				</section>
 			</main>
 		</div>
