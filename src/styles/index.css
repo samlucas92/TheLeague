@@ -20,3 +20,12 @@ a {
 	color: inherit;
 	text-decoration: none;
 }
+
+.league-tabs-scroll {
+	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+}
+
+.league-tabs-scroll::-webkit-scrollbar {
+	display: none;
+}
