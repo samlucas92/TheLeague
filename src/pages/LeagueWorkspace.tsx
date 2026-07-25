@@ -693,14 +693,27 @@ export function MembersPage() {
 	const [displayName, setDisplayName] = useState('');
 	const [emailAddress, setEmailAddress] = useState('');
 	const [role, setRole] = useState('Participant');
-	const [linkEmails, setLinkEmails] = useState<Record<string, string>>({});
 	const [editingMember, setEditingMember] = useState<Member | null>(null);
+	const [linkingMember, setLinkingMember] = useState<Member | null>(null);
+	const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const currentMember = members.find((member) => member.userId === user?.id);
 	const isOwner = currentMember?.role === 'Owner';
 	const canManageMembers = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 	const roleOptions = isOwner ? ['Participant', 'PointApprover', 'Admin', 'Owner'] : ['Participant', 'PointApprover', 'Admin'];
+	const pointTotals = useMemo(() => new Map(leaderboard.map((row) => [row.leagueMemberId, row.approvedPoints])), [leaderboard]);
+
+	async function refreshMemberData() {
+		await Promise.all([
+			refreshMembers(),
+			leagueService.leaderboard(league.id).then(setLeaderboard)
+		]);
+	}
+
+	useEffect(() => {
+		leagueService.leaderboard(league.id).then(setLeaderboard).catch(() => setLeaderboard([]));
+	}, [league.id]);
 
 	async function addOfflineMember(event: FormEvent) {
 		event.preventDefault();
@@ -712,7 +725,7 @@ export function MembersPage() {
 			setEmailAddress('');
 			setRole('Participant');
 			setMessage('Offline member added.');
-			await refreshMembers();
+			await refreshMemberData();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not add member.');
 		}
@@ -724,21 +737,9 @@ export function MembersPage() {
 		try {
 			await leagueService.changeMemberRole(league.id, member.id, nextRole);
 			setMessage('Role updated.');
-			await refreshMembers();
+			await refreshMemberData();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not update role.');
-		}
-	}
-
-	async function linkMember(member: Member) {
-		setError('');
-		setMessage('');
-		try {
-			await leagueService.linkOfflineMember(league.id, member.id, linkEmails[member.id] ?? '');
-			setMessage('Offline member linked. Their points now belong to the registered member.');
-			await refreshMembers();
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Could not link member.');
 		}
 	}
 
@@ -752,7 +753,7 @@ export function MembersPage() {
 		try {
 			await leagueService.removeMember(league.id, member.id);
 			setMessage('Member removed.');
-			await refreshMembers();
+			await refreshMemberData();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not remove member.');
 		}
@@ -786,13 +787,15 @@ export function MembersPage() {
 					<p className="text-sm text-slate-600">{members.length} people in this league.</p>
 				</div>
 				{members.map((member) => (
-					<div key={member.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[minmax(0,1fr)_12rem_minmax(0,24rem)_auto] xl:items-center">
+					<div key={member.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[minmax(0,1fr)_12rem_10rem_auto] xl:items-center">
 						<div className="min-w-0">
 							<p className="font-bold text-ink">{member.displayName}</p>
-							<p className="text-sm text-slate-600">
-								{member.isOfflineMember ? 'Offline member' : 'Registered member'}
-								{member.emailAddress ? ` · ${member.emailAddress}` : ''}
-							</p>
+							<div className="mt-2 flex flex-wrap gap-2">
+								<StatusBadge label={member.isOfflineMember ? 'Offline' : 'Registered'} tone={member.isOfflineMember ? 'warning' : 'good'} />
+								<StatusBadge label={member.role} tone={member.role === 'Owner' ? 'good' : member.role === 'PointApprover' ? 'warning' : 'neutral'} />
+								<StatusBadge label={`${pointTotals.get(member.id) ?? 0} pts`} />
+							</div>
+							{member.emailAddress ? <p className="mt-2 text-sm text-slate-600">{member.emailAddress}</p> : null}
 						</div>
 						{canManageMembers ? (
 							<SelectInput value={member.role} onChange={(event) => changeRole(member, event.target.value)} disabled={!isOwner && (member.role === 'Owner' || member.role === 'Admin')}>
@@ -802,15 +805,7 @@ export function MembersPage() {
 							<StatusBadge label={member.role} tone={member.role === 'Owner' ? 'good' : member.role === 'PointApprover' ? 'warning' : 'neutral'} />
 						)}
 						{canManageMembers && member.isOfflineMember ? (
-							<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-								<TextInput
-									type="email"
-									placeholder="Registered email to link"
-									value={linkEmails[member.id] ?? ''}
-									onChange={(event) => setLinkEmails((current) => ({ ...current, [member.id]: event.target.value }))}
-								/>
-								<Button type="button" variant="secondary" onClick={() => linkMember(member)}>Link</Button>
-							</div>
+							<Button type="button" variant="secondary" onClick={() => setLinkingMember(member)}>Link account</Button>
 						) : (
 							<div className="hidden xl:block" />
 						)}
@@ -843,7 +838,21 @@ export function MembersPage() {
 					onSaved={async () => {
 						setEditingMember(null);
 						setMessage('Member updated.');
-						await refreshMembers();
+						await refreshMemberData();
+					}}
+				/>
+			) : null}
+			{linkingMember ? (
+				<LinkOfflineMemberModal
+					open
+					league={league}
+					member={linkingMember}
+					points={pointTotals.get(linkingMember.id) ?? 0}
+					onClose={() => setLinkingMember(null)}
+					onSaved={async () => {
+						setLinkingMember(null);
+						setMessage('Offline member linked. Their points now belong to the registered member.');
+						await refreshMemberData();
 					}}
 				/>
 			) : null}
@@ -913,6 +922,66 @@ function EditMemberModal({
 				<div className="flex flex-wrap justify-end gap-2">
 					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
 					<Button type="submit" icon={<Check size={16} />}>Save changes</Button>
+				</div>
+			</form>
+		</Modal>
+	);
+}
+
+function LinkOfflineMemberModal({
+	open,
+	league,
+	member,
+	points,
+	onClose,
+	onSaved
+}: {
+	open: boolean;
+	league: League;
+	member: Member;
+	points: number;
+	onClose: () => void;
+	onSaved: () => void | Promise<void>;
+}) {
+	const [emailAddress, setEmailAddress] = useState(member.emailAddress ?? '');
+	const [error, setError] = useState('');
+
+	useEffect(() => {
+		setEmailAddress(member.emailAddress ?? '');
+		setError('');
+	}, [member]);
+
+	async function submit(event: FormEvent) {
+		event.preventDefault();
+		setError('');
+		try {
+			await leagueService.linkOfflineMember(league.id, member.id, emailAddress);
+			await onSaved();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not link member.');
+		}
+	}
+
+	return (
+		<Modal open={open} title="Link offline member" description={`Connect ${member.displayName} to a registered account.`} onClose={onClose}>
+			<form className="grid gap-4" onSubmit={submit}>
+				<div className="grid gap-2 rounded-md bg-slate-50 px-3 py-3 text-sm text-slate-600">
+					<p><span className="font-semibold text-ink">Offline member:</span> {member.displayName}</p>
+					<p><span className="font-semibold text-ink">Current points:</span> {points}</p>
+					<p>If this email belongs to an existing member, their points and challenge history will be merged into that registered member.</p>
+				</div>
+				<Field label="Registered account email">
+					<TextInput type="email" value={emailAddress} onChange={(event) => setEmailAddress(event.target.value)} required />
+				</Field>
+				{points !== 0 ? (
+					<p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+						This member has {points} points. Linking will move those points to the registered account.
+					</p>
+				) : null}
+				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+				<div className="flex flex-wrap justify-end gap-2">
+					<Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+					<Button type="submit" icon={<Check size={16} />}>Link account</Button>
 				</div>
 			</form>
 		</Modal>
