@@ -283,7 +283,7 @@ export function ChallengesPage() {
 		refreshChallenges();
 	}, [league.id, dataVersion]);
 
-	async function respond(challenge: Challenge, action: 'accept' | 'reject' | 'complete' | 'fail') {
+	async function respond(challenge: Challenge, action: 'accept' | 'reject' | 'complete' | 'fail', targetMemberId?: string) {
 		if (action === 'accept') {
 			await leagueService.acceptChallenge(league.id, challenge.id);
 			setMessage('Challenge accepted.');
@@ -291,10 +291,10 @@ export function ChallengesPage() {
 			await leagueService.rejectChallenge(league.id, challenge.id);
 			setMessage('Challenge rejected and penalty applied.');
 		} else if (action === 'complete') {
-			await leagueService.completeChallenge(league.id, challenge.id);
+			await leagueService.completeChallenge(league.id, challenge.id, targetMemberId);
 			setMessage('Challenge completed and points awarded.');
 		} else {
-			await leagueService.failChallenge(league.id, challenge.id);
+			await leagueService.failChallenge(league.id, challenge.id, targetMemberId);
 			setMessage('Challenge failed and penalty applied.');
 		}
 		setSelectedChallenge(null);
@@ -406,6 +406,7 @@ export function ChallengesPage() {
 					selectedChallenge.completedMemberIds.includes(memberId) ||
 					selectedChallenge.failedMemberIds.includes(memberId)
 				);
+				const canConfirmChallenge = user?.id === selectedChallenge.createdByUserId || currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 
 				return (
 					<Modal
@@ -437,16 +438,45 @@ export function ChallengesPage() {
 											<Button type="button" onClick={() => respond(selectedChallenge, 'accept')} icon={<Check size={16} />}>Accept</Button>
 										</div>
 									) : null}
-									{selectedChallenge.acceptedMemberIds.includes(memberId) && !hasOutcome ? (
-										<div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-3">
-											<Button type="button" variant="secondary" onClick={() => respond(selectedChallenge, 'fail')} icon={<X size={16} />}>Mark failed</Button>
-											<Button type="button" onClick={() => respond(selectedChallenge, 'complete')} icon={<Check size={16} />}>Mark completed</Button>
-										</div>
-									) : null}
 								</div>
 							) : (
-								<p className="mt-5 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">Only challenged players can action this challenge.</p>
+								<p className="mt-5 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">Only challenged players can accept or reject this challenge.</p>
 							)}
+							<div className="mt-5 border-t border-slate-100 pt-4">
+								<h3 className="text-sm font-bold text-ink">Outcome history</h3>
+								<div className="mt-3 grid gap-2">
+									{selectedChallenge.outcomes.map((outcome) => {
+										const canMarkOutcome = canConfirmChallenge && outcome.status === 'Accepted';
+										return (
+											<div key={outcome.leagueMemberId} className="grid gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+												<div>
+													<div className="flex flex-wrap items-center gap-2">
+														<p className="font-semibold text-ink">{outcome.displayName}</p>
+														<StatusBadge
+															label={outcome.status}
+															tone={outcome.status === 'Rejected' || outcome.status === 'Failed' ? 'bad' : outcome.status === 'Accepted' || outcome.status === 'Completed' ? 'good' : 'neutral'}
+														/>
+														{outcome.points ? <StatusBadge label={`${outcome.points > 0 ? '+' : ''}${outcome.points} pts`} tone={outcome.points > 0 ? 'good' : 'bad'} /> : null}
+													</div>
+													{outcome.awardedAt ? (
+														<p className="mt-1 text-xs text-slate-500">
+															{outcome.status} by {outcome.awardedByName ?? 'Unknown'} on {new Date(outcome.awardedAt).toLocaleString()}
+														</p>
+													) : (
+														<p className="mt-1 text-xs text-slate-500">{outcome.status === 'Open' ? 'Waiting for response.' : 'No point allocation yet.'}</p>
+													)}
+												</div>
+												{canMarkOutcome ? (
+													<div className="flex flex-wrap justify-end gap-2">
+														<Button type="button" variant="secondary" onClick={() => respond(selectedChallenge, 'fail', outcome.leagueMemberId)} icon={<X size={16} />}>Mark failed</Button>
+														<Button type="button" onClick={() => respond(selectedChallenge, 'complete', outcome.leagueMemberId)} icon={<Check size={16} />}>Mark completed</Button>
+													</div>
+												) : null}
+											</div>
+										);
+									})}
+								</div>
+							</div>
 						</div>
 					</Modal>
 				);

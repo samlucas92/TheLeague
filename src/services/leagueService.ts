@@ -40,10 +40,10 @@ export const leagueService = {
 		postJson<Challenge>(`/leagues/${leagueId}/challenges/${challengeId}/accept`),
 	rejectChallenge: (leagueId: string, challengeId: string) =>
 		postJson(`/leagues/${leagueId}/challenges/${challengeId}/reject`),
-	completeChallenge: (leagueId: string, challengeId: string) =>
-		postJson(`/leagues/${leagueId}/challenges/${challengeId}/complete`),
-	failChallenge: (leagueId: string, challengeId: string) =>
-		postJson(`/leagues/${leagueId}/challenges/${challengeId}/fail`),
+	completeChallenge: (leagueId: string, challengeId: string, targetMemberId?: string) =>
+		postJson(`/leagues/${leagueId}/challenges/${challengeId}/complete`, { targetMemberId }),
+	failChallenge: (leagueId: string, challengeId: string, targetMemberId?: string) =>
+		postJson(`/leagues/${leagueId}/challenges/${challengeId}/fail`, { targetMemberId }),
 	submit: (leagueId: string, input: { challengeId: string; requestedPoints?: number | null; publicReason: string }) =>
 		postJson<Submission>(`/leagues/${leagueId}/submissions`, input),
 	mySubmissions: (leagueId: string) => apiRequest<Submission[]>(`/leagues/${leagueId}/submissions/mine`),

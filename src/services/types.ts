@@ -66,6 +66,16 @@ export type Challenge = {
 	pointsForFailure: number;
 	isActive: boolean;
 	createdAt: string;
+	outcomes: ChallengeOutcome[];
+};
+
+export type ChallengeOutcome = {
+	leagueMemberId: string;
+	displayName: string;
+	status: string;
+	awardedAt?: string | null;
+	awardedByName?: string | null;
+	points?: number | null;
 };
 
 export type Submission = {
