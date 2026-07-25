@@ -407,6 +407,7 @@ export function ChallengesPage() {
 					selectedChallenge.failedMemberIds.includes(memberId)
 				);
 				const canConfirmChallenge = user?.id === selectedChallenge.createdByUserId || currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
+				const outcomes = getChallengeOutcomes(selectedChallenge);
 
 				return (
 					<Modal
@@ -445,7 +446,7 @@ export function ChallengesPage() {
 							<div className="mt-5 border-t border-slate-100 pt-4">
 								<h3 className="text-sm font-bold text-ink">Outcome history</h3>
 								<div className="mt-3 grid gap-2">
-									{selectedChallenge.outcomes.map((outcome) => {
+									{outcomes.map((outcome) => {
 										const canMarkOutcome = canConfirmChallenge && outcome.status === 'Accepted';
 										return (
 											<div key={outcome.leagueMemberId} className="grid gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -1213,6 +1214,21 @@ function getChallengeStatus(challenge: Challenge, memberId?: string) {
 	}
 
 	return 'Open';
+}
+
+function getChallengeOutcomes(challenge: Challenge) {
+	if (Array.isArray(challenge.outcomes)) {
+		return challenge.outcomes;
+	}
+
+	return challenge.targetMemberIds.map((memberId, index) => ({
+		leagueMemberId: memberId,
+		displayName: challenge.targetNames[index] ?? 'Unknown member',
+		status: getChallengeStatus(challenge, memberId),
+		awardedAt: null,
+		awardedByName: null,
+		points: null
+	}));
 }
 
 function LeaderboardLine({ row }: { row: LeaderboardRow }) {

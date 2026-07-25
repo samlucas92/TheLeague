@@ -16,19 +16,21 @@ import {
 	PointsFeedPage
 } from './pages/LeagueWorkspace';
 import { PublicLeagueViewPage } from './pages/PublicLeagueViewPage';
+import { AppErrorPage } from './components/AppErrorPage';
 import { PwaStatus } from './components/PwaStatus';
 import { WarmUpSplash } from './components/WarmUpSplash';
 import { useAuthStore } from './store/authStore';
 import './styles/index.css';
 
 const router = createBrowserRouter([
-	{ path: '/login', element: <LoginPage /> },
-	{ path: '/register', element: <RegisterPage /> },
-	{ path: '/view', element: <PublicLeagueViewPage /> },
-	{ path: '/view/:joinCode', element: <PublicLeagueViewPage /> },
+	{ path: '/login', element: <LoginPage />, errorElement: <AppErrorPage /> },
+	{ path: '/register', element: <RegisterPage />, errorElement: <AppErrorPage /> },
+	{ path: '/view', element: <PublicLeagueViewPage />, errorElement: <AppErrorPage /> },
+	{ path: '/view/:joinCode', element: <PublicLeagueViewPage />, errorElement: <AppErrorPage /> },
 	{
 		path: '/',
 		element: <AppLayout />,
+		errorElement: <AppErrorPage />,
 		children: [
 			{ index: true, element: <Navigate to="/leagues" replace /> },
 			{ path: 'leagues', element: <LeagueListPage /> },
