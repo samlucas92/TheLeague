@@ -185,6 +185,7 @@ export function RegisterPage() {
 	const [name, setName] = useState('');
 	const [emailAddress, setEmailAddress] = useState('');
 	const [password, setPassword] = useState('');
+	const [acceptedTerms, setAcceptedTerms] = useState(false);
 	const [error, setError] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const { user, setUser } = useAuthStore();
@@ -201,9 +202,14 @@ export function RegisterPage() {
 	async function onSubmit(event: FormEvent) {
 		event.preventDefault();
 		setError('');
+		if (!acceptedTerms) {
+			setError('You must agree to the Terms of Service to create an account.');
+			return;
+		}
+
 		setIsSubmitting(true);
 		try {
-			const nextUser = await authService.register(name, emailAddress, password);
+			const nextUser = await authService.register(name, emailAddress, password, acceptedTerms);
 			setUser(nextUser);
 			navigate(signedInTarget);
 		} catch (err) {
@@ -224,9 +230,15 @@ export function RegisterPage() {
 				<Field label="Password">
 					<TextInput type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
 				</Field>
+				<label className="flex items-start gap-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
+					<input className="mt-1" type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} required />
+					<span>
+						I agree to the <Link className="font-semibold text-ink underline" to="/terms" target="_blank" rel="noreferrer">Terms of Service</Link>.
+					</span>
+				</label>
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				{joinCode ? <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">After creating your account, you will join with code {joinCode}.</p> : null}
-				<Button icon={<UserPlus size={16} />} loading={isSubmitting} loadingLabel="Creating account...">Create account</Button>
+				<Button icon={<UserPlus size={16} />} loading={isSubmitting} loadingLabel="Creating account..." disabled={!acceptedTerms}>Create account</Button>
 				<p className="text-sm text-slate-600">
 					Already registered? <Link className="font-semibold text-ink underline" to={`/login${authSuffix}`}>Sign in</Link>
 				</p>

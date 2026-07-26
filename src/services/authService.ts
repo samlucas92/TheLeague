@@ -9,8 +9,8 @@ async function withPersistedToken(request: Promise<LoginResponse>) {
 
 export const authService = {
 	me: () => apiRequest<User>('/auth/me'),
-	register: (name: string, emailAddress: string, password: string) =>
-		withPersistedToken(postJson<LoginResponse>('/auth/register', { name, emailAddress, password })),
+	register: (name: string, emailAddress: string, password: string, acceptedTerms: boolean) =>
+		withPersistedToken(postJson<LoginResponse>('/auth/register', { name, emailAddress, password, acceptedTerms })),
 	login: (emailAddress: string, password: string) =>
 		withPersistedToken(postJson<LoginResponse>('/auth/login', { emailAddress, password })),
 	changePassword: (currentPassword: string, newPassword: string) =>
