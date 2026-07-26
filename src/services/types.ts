@@ -162,6 +162,8 @@ export type SiteUserAdminItem = {
 	emailAddress: string;
 	isEmailVerified: boolean;
 	isSiteAdmin: boolean;
+	isDeleted: boolean;
 	createdAt: string;
 	emailVerifiedAt?: string | null;
+	deletedAt?: string | null;
 };

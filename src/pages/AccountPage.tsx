@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Check, KeyRound, MailCheck, Send } from 'lucide-react';
+import { Check, KeyRound, MailCheck, Send, Trash2 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Field, TextInput } from '../components/FormField';
 import { PageHeader } from '../components/PageHeader';
@@ -10,13 +10,16 @@ import type { EmailAuditItem, SiteUserAdminItem } from '../services/types';
 import { useAuthStore } from '../store/authStore';
 
 export function AccountPage() {
-	const { user } = useAuthStore();
+	const { user, setUser } = useAuthStore();
 	const [currentPassword, setCurrentPassword] = useState('');
 	const [newPassword, setNewPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
+	const [deactivatePassword, setDeactivatePassword] = useState('');
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [isDeactivating, setIsDeactivating] = useState(false);
+	const [deactivateError, setDeactivateError] = useState('');
 	const [verificationMessage, setVerificationMessage] = useState('');
 	const [verificationError, setVerificationError] = useState('');
 	const [isSendingVerification, setIsSendingVerification] = useState(false);
@@ -95,6 +98,19 @@ export function AccountPage() {
 			setError(err instanceof Error ? err.message : 'Could not change password.');
 		} finally {
 			setIsSubmitting(false);
+		}
+	}
+
+	async function deactivateAccount(event: FormEvent) {
+		event.preventDefault();
+		setDeactivateError('');
+		setIsDeactivating(true);
+		try {
+			await authService.deactivate(deactivatePassword);
+			setUser(null);
+		} catch (err) {
+			setDeactivateError(err instanceof Error ? err.message : 'Could not deactivate account.');
+			setIsDeactivating(false);
 		}
 	}
 
@@ -203,6 +219,19 @@ export function AccountPage() {
 						<Button type="submit" icon={message ? <Check size={16} /> : <KeyRound size={16} />} loading={isSubmitting} loadingLabel="Changing...">Change password</Button>
 					</div>
 				</form>
+				<form className="grid gap-4 border-t border-slate-100 pt-5" onSubmit={deactivateAccount}>
+					<div>
+						<h2 className="text-lg font-bold text-ink">Danger zone</h2>
+						<p className="mt-1 text-sm text-slate-600">Deactivate your account to block future sign-in. Your existing league history is kept for scoring and audit continuity.</p>
+					</div>
+					<Field label="Current password">
+						<TextInput type="password" value={deactivatePassword} onChange={(event) => setDeactivatePassword(event.target.value)} required />
+					</Field>
+					{deactivateError ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{deactivateError}</p> : null}
+					<div className="flex justify-end">
+						<Button type="submit" variant="secondary" icon={<Trash2 size={16} />} loading={isDeactivating} loadingLabel="Deactivating...">Deactivate account</Button>
+					</div>
+				</form>
 			</section>
 			) : null}
 			{user?.isSiteAdmin && activeTab === 'users' ? (
@@ -227,9 +256,11 @@ export function AccountPage() {
 										<p className="font-semibold text-ink">{siteUser.name}</p>
 										<StatusBadge label={siteUser.isEmailVerified ? 'Verified' : 'Unverified'} tone={siteUser.isEmailVerified ? 'good' : 'warning'} />
 										{siteUser.isSiteAdmin ? <StatusBadge label="Site admin" tone="good" /> : null}
+										{siteUser.isDeleted ? <StatusBadge label="Deactivated" tone="bad" /> : null}
 									</div>
 									<p className="mt-1 break-all text-sm text-slate-700">{siteUser.emailAddress}</p>
 									<p className="mt-1 text-xs text-slate-500">Joined {new Date(siteUser.createdAt).toLocaleString()}</p>
+									{siteUser.deletedAt ? <p className="mt-1 text-xs text-red-600">Deactivated {new Date(siteUser.deletedAt).toLocaleString()}</p> : null}
 								</div>
 								<Button
 									type="button"

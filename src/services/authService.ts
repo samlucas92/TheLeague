@@ -15,6 +15,8 @@ export const authService = {
 		withPersistedToken(postJson<LoginResponse>('/auth/login', { emailAddress, password })),
 	changePassword: (currentPassword: string, newPassword: string) =>
 		postJson<void>('/auth/change-password', { currentPassword, newPassword }),
+	deactivate: (currentPassword: string) =>
+		postJson<void>('/auth/deactivate', { currentPassword }),
 	forgotPassword: (emailAddress: string) =>
 		postJson<{ message: string; resetLink?: string | null; expiresAt?: string | null }>('/auth/forgot-password', { emailAddress }),
 	resetPassword: (token: string, newPassword: string) =>
