@@ -6,6 +6,9 @@ import { leagueService } from '../../../../services/leagueService';
 import type { Tournament, TournamentMatch } from '../../../../services/types';
 import { Avatar } from './Shared';
 
+type DartMultiplier = 'Single' | 'Double' | 'Treble';
+type PendingDart = { label: string; score: number; isDouble: boolean };
+
 export function LiveDartsScorer({ leagueId, tournament, match, canManage, playerOne, playerTwo, onChanged }: { leagueId: string; tournament: Tournament; match: TournamentMatch; canManage: boolean; playerOne: string; playerTwo: string; onChanged: () => Promise<void> }) {
 	const startScore = tournament.startScore ?? (tournament.gameType === 'Darts501' ? 501 : 301);
 	const targetLegs = tournament.matchRule === 'BestOf' ? Math.floor((tournament.framesOrLegs || 1) / 2) + 1 : tournament.framesOrLegs || 1;
@@ -19,7 +22,10 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	const [playerOneLegs, setPlayerOneLegs] = useState(match.playerOneScore ?? 0);
 	const [playerTwoLegs, setPlayerTwoLegs] = useState(match.playerTwoScore ?? 0);
 	const [visitScore, setVisitScore] = useState('');
-	const [turnHistory, setTurnHistory] = useState<Array<{ activePlayerId: string; playerOneRemaining: number; playerTwoRemaining: number; playerOneLegs: number; playerTwoLegs: number }>>([]);
+	const [pendingDarts, setPendingDarts] = useState<PendingDart[]>([]);
+	const [selectedMultiplier, setSelectedMultiplier] = useState<DartMultiplier>('Single');
+	const [manualCheckoutDouble, setManualCheckoutDouble] = useState(false);
+	const [turnHistory, setTurnHistory] = useState<Array<{ activePlayerId: string; playerOneRemaining: number; playerTwoRemaining: number; playerOneLegs: number; playerTwoLegs: number; pendingDarts: PendingDart[] }>>([]);
 	const [error, setError] = useState('');
 	const [isCompleting, setIsCompleting] = useState(false);
 	const activePlayerName = activePlayerId === playerTwoId ? playerTwo : activePlayerId === playerOneId ? playerOne : 'Choose who throws first';
@@ -36,25 +42,31 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 		setActivePlayerId((current) => current === playerOneId ? playerTwoId : playerOneId);
 	}
 
-	function submitVisit(event: FormEvent) {
-		event.preventDefault();
-		const score = Number(visitScore);
+	function recordVisit(score: number, finishedOnDouble: boolean, dartsForTurn = pendingDarts) {
 		if (!canManage || !gameStarted || matchComplete || !Number.isInteger(score) || score < 0 || score > 180) {
 			setError('Enter a score between 0 and 180.');
 			return;
 		}
 
 		const currentRemaining = activePlayerId === playerOneId ? playerOneRemaining : playerTwoRemaining;
-		if (score > currentRemaining) {
-			setError('Bust. Score cannot be higher than the remaining total.');
+		const nextRemaining = currentRemaining - score;
+		if (score > currentRemaining || nextRemaining === 1 || (nextRemaining === 0 && tournament.doubleOutRequired && !finishedOnDouble)) {
+			setTurnHistory((history) => [...history, { activePlayerId, playerOneRemaining, playerTwoRemaining, playerOneLegs, playerTwoLegs, pendingDarts: dartsForTurn }]);
+			setError(nextRemaining === 0 ? 'Bust. Checkout must finish on a double.' : 'Bust.');
+			setVisitScore('');
+			setManualCheckoutDouble(false);
+			setPendingDarts([]);
+			changeTurn();
 			return;
 		}
 
-		setTurnHistory((history) => [...history, { activePlayerId, playerOneRemaining, playerTwoRemaining, playerOneLegs, playerTwoLegs }]);
+		setTurnHistory((history) => [...history, { activePlayerId, playerOneRemaining, playerTwoRemaining, playerOneLegs, playerTwoLegs, pendingDarts: dartsForTurn }]);
 		setError('');
 		setVisitScore('');
+		setManualCheckoutDouble(false);
+		setPendingDarts([]);
 
-		if (score === currentRemaining) {
+		if (nextRemaining === 0) {
 			const nextPlayerOneLegs = playerOneLegs + (activePlayerId === playerOneId ? 1 : 0);
 			const nextPlayerTwoLegs = playerTwoLegs + (activePlayerId === playerTwoId ? 1 : 0);
 			setPlayerOneLegs(nextPlayerOneLegs);
@@ -66,11 +78,44 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 		}
 
 		if (activePlayerId === playerOneId) {
-			setPlayerOneRemaining(currentRemaining - score);
+			setPlayerOneRemaining(nextRemaining);
 		} else {
-			setPlayerTwoRemaining(currentRemaining - score);
+			setPlayerTwoRemaining(nextRemaining);
 		}
 		changeTurn();
+	}
+
+	function submitVisit(event: FormEvent) {
+		event.preventDefault();
+		const score = Number(visitScore);
+		recordVisit(score, manualCheckoutDouble);
+	}
+
+	function scoreDart(value: number, multiplier: DartMultiplier) {
+		const multiplierValue = multiplier === 'Treble' ? 3 : multiplier === 'Double' ? 2 : 1;
+		recordDart({
+			label: multiplier === 'Single' ? `${value}` : `${multiplier[0]}${value}`,
+			score: value * multiplierValue,
+			isDouble: multiplier === 'Double'
+		});
+	}
+
+	function recordDart(dart: PendingDart) {
+		if (!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2) {
+			return;
+		}
+
+		const nextPendingDarts = [...pendingDarts, dart];
+		const turnScore = nextPendingDarts.reduce((total, item) => total + item.score, 0);
+		const currentRemaining = activePlayerId === playerOneId ? playerOneRemaining : playerTwoRemaining;
+		const nextRemaining = currentRemaining - turnScore;
+		if (nextRemaining === 0 || nextPendingDarts.length === 2 || nextRemaining < 1) {
+			recordVisit(turnScore, dart.isDouble, nextPendingDarts);
+			return;
+		}
+
+		setPendingDarts(nextPendingDarts);
+		setError('');
 	}
 
 	function undoLastTurn() {
@@ -84,6 +129,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 		setPlayerTwoRemaining(previous.playerTwoRemaining);
 		setPlayerOneLegs(previous.playerOneLegs);
 		setPlayerTwoLegs(previous.playerTwoLegs);
+		setPendingDarts(previous.pendingDarts);
 		setTurnHistory((history) => history.slice(0, -1));
 		setError('');
 	}
@@ -146,10 +192,48 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 						<Field label="Score this visit">
 							<TextInput className="min-h-16 text-center text-3xl font-bold" type="number" min="0" max="180" value={visitScore} onChange={(event) => setVisitScore(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} placeholder="0" />
 						</Field>
-						<div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-							{[26, 41, 45, 60, 81, 85, 100, 121, 125, 140, 160, 180].map((score) => (
-								<button key={score} type="button" className="min-h-12 rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => setVisitScore(String(score))} disabled={!canManage || !gameStarted || matchComplete}>{score}</button>
-							))}
+						{Number(visitScore) === activeRemaining && tournament.doubleOutRequired ? (
+							<label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+								<input type="checkbox" checked={manualCheckoutDouble} onChange={(event) => setManualCheckoutDouble(event.target.checked)} disabled={!canManage || !gameStarted || matchComplete} />
+								Manual score finished on a double
+							</label>
+						) : null}
+						<div className="grid gap-3 rounded-md bg-slate-50 p-3">
+							<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
+								<div className="flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-500">
+									<span>Darts this turn</span>
+									<span>{pendingDarts.reduce((total, dart) => total + dart.score, 0)} scored</span>
+								</div>
+								<div className="grid grid-cols-2 gap-2">
+									{[0, 1].map((index) => {
+										const dart = pendingDarts[index];
+										return (
+											<div key={index} className="rounded-md bg-slate-50 px-3 py-2 text-center">
+												<p className="text-xs font-semibold text-slate-500">Dart {index + 1}</p>
+												<p className="text-lg font-bold text-ink">{dart ? `${dart.label} (${dart.score})` : '-'}</p>
+											</div>
+										);
+									})}
+								</div>
+							</div>
+							<div className="grid grid-cols-3 gap-2">
+								{(['Single', 'Double', 'Treble'] as DartMultiplier[]).map((multiplier) => (
+									<button key={multiplier} type="button" className={selectedMultiplier === multiplier ? 'min-h-11 rounded-md bg-ink px-3 py-2 text-sm font-bold text-white' : 'min-h-11 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50'} onClick={() => setSelectedMultiplier(multiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>
+										{multiplier}
+									</button>
+								))}
+							</div>
+							<div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+								{Array.from({ length: 20 }, (_, index) => index + 1).map((number) => (
+									<button key={number} type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => scoreDart(number, selectedMultiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>
+										{number}
+									</button>
+								))}
+							</div>
+							<div className="grid grid-cols-2 gap-2">
+								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: '25', score: 25, isDouble: false })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>25</button>
+								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: 'Bull', score: 50, isDouble: true })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>Bull</button>
+							</div>
 						</div>
 					</div>
 					<div className="grid content-start gap-2">
