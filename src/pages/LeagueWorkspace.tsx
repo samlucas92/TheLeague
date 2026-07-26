@@ -10,7 +10,7 @@ import { Modal } from '../components/Modal';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { leagueService } from '../services/leagueService';
-import type { Challenge, EmailAuditItem, League, LeagueAuditItem, LeaderboardRow, Member, PointsFeedItem, Submission } from '../services/types';
+import type { Challenge, League, LeagueAuditItem, LeaderboardRow, Member, PointsFeedItem, Submission } from '../services/types';
 import { useAuthStore } from '../store/authStore';
 
 type WorkspaceContext = {
@@ -642,10 +642,8 @@ export function ChallengesPage() {
 
 export function AdminPage() {
 	const { league, currentMember, setLeague } = useWorkspace();
-	const { user } = useAuthStore();
 	const [pending, setPending] = useState<Submission[]>([]);
 	const [audit, setAudit] = useState<LeagueAuditItem[]>([]);
-	const [emails, setEmails] = useState<EmailAuditItem[]>([]);
 	const [name, setName] = useState(league.name);
 	const [description, setDescription] = useState(league.description ?? '');
 	const [joinMode, setJoinMode] = useState(league.joinMode);
@@ -655,18 +653,15 @@ export function AdminPage() {
 	const [pendingAction, setPendingAction] = useState<string | null>(null);
 	const [isRegenerateConfirmOpen, setIsRegenerateConfirmOpen] = useState(false);
 	const canManageLeague = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
-	const canViewEmailOutbox = user?.isSiteAdmin === true;
 	const joinModeOptions = ['OpenWithCode', 'ApprovalRequired', 'InviteOnly', 'Closed'];
 
 	async function refresh() {
-		const [pendingItems, auditItems, emailItems] = await Promise.all([
+		const [pendingItems, auditItems] = await Promise.all([
 			leagueService.pendingSubmissions(league.id),
-			leagueService.audit(league.id),
-			canViewEmailOutbox ? leagueService.emails(league.id) : Promise.resolve([])
+			leagueService.audit(league.id)
 		]);
 		setPending(pendingItems ?? []);
 		setAudit(auditItems ?? []);
-		setEmails(emailItems ?? []);
 	}
 
 	useEffect(() => {
@@ -742,21 +737,6 @@ export function AdminPage() {
 		}
 	}
 
-	async function retryEmail(email: EmailAuditItem) {
-		setError('');
-		setMessage('');
-		setPendingAction(`${email.id}:retry-email`);
-		try {
-			await leagueService.retryEmail(league.id, email.id);
-			setMessage('Email retry attempted.');
-			await refresh();
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Could not retry email.');
-		} finally {
-			setPendingAction(null);
-		}
-	}
-
 	return (
 		<div className="grid gap-5">
 			{canManageLeague ? (
@@ -813,44 +793,6 @@ export function AdminPage() {
 					{pending.length === 0 ? <p className="text-sm text-slate-600">No pending submissions.</p> : null}
 					</div>
 				</section>
-				{canViewEmailOutbox ? (
-				<section className="rounded-lg border border-slate-200 bg-white p-5">
-					<div className="flex flex-wrap items-start justify-between gap-3">
-						<div>
-							<h2 className="text-lg font-bold text-ink">Email outbox</h2>
-							<p className="mt-1 text-sm text-slate-600">Recent app emails with provider status and failure details.</p>
-						</div>
-						<StatusBadge label={`${emails.length} emails`} />
-					</div>
-					<div className="mt-4 grid gap-3">
-						{emails.map((email) => (
-							<article key={email.id} className="grid gap-3 rounded-md border border-slate-200 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-								<div className="min-w-0">
-									<div className="flex flex-wrap items-center gap-2">
-										<StatusBadge label={email.status} tone={getEmailTone(email.status)} />
-										<p className="truncate text-sm font-semibold text-ink">{email.subject}</p>
-									</div>
-									<p className="mt-1 text-sm text-slate-700">
-										{email.toName ? `${email.toName} ` : ''}<span className="font-semibold">{email.toEmailAddress}</span>
-									</p>
-									<div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-										<span>{email.provider}</span>
-										<span>{email.attempts} attempt{email.attempts === 1 ? '' : 's'}</span>
-										{email.providerMessageId ? <span className="break-all">Provider id {email.providerMessageId}</span> : null}
-										<span>{new Date(email.createdAt).toLocaleString()}</span>
-									</div>
-									{email.failureReason ? <p className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{email.failureReason}</p> : null}
-									{email.nextAttemptAt ? <p className="mt-1 text-xs text-slate-500">Next retry after {new Date(email.nextAttemptAt).toLocaleString()}</p> : null}
-								</div>
-								{email.status === 'Failed' ? (
-									<Button variant="secondary" loading={pendingAction === `${email.id}:retry-email`} loadingLabel="Retrying..." onClick={() => retryEmail(email)}>Retry</Button>
-								) : null}
-							</article>
-						))}
-						{emails.length === 0 ? <p className="text-sm text-slate-600">No emails recorded yet.</p> : null}
-					</div>
-				</section>
-				) : null}
 				<section className="rounded-lg border border-slate-200 bg-white p-5">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div>
@@ -1803,22 +1745,6 @@ function getAuditTone(action: string): 'neutral' | 'good' | 'warning' | 'bad' {
 	}
 
 	if (action.includes('Changed') || action.includes('Edited') || action.includes('Regenerated') || action.includes('Updated') || action.includes('Requested')) {
-		return 'warning';
-	}
-
-	return 'neutral';
-}
-
-function getEmailTone(status: string): 'neutral' | 'good' | 'warning' | 'bad' {
-	if (status === 'Sent') {
-		return 'good';
-	}
-
-	if (status === 'Failed') {
-		return 'bad';
-	}
-
-	if (status === 'Pending' || status === 'Sending') {
 		return 'warning';
 	}
 
