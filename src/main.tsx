@@ -14,7 +14,8 @@ import {
 	MembersPage,
 	MySubmissionsPage,
 	OverviewPage,
-	PointsFeedPage
+	PointsFeedPage,
+	TournamentsPage
 } from './pages/LeagueWorkspace';
 import { PublicLeagueViewPage } from './pages/PublicLeagueViewPage';
 import { PrivacyPage } from './pages/PrivacyPage';
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
 					{ path: 'leaderboard', element: <LeaderboardPage /> },
 					{ path: 'points', element: <PointsFeedPage /> },
 					{ path: 'challenges', element: <ChallengesPage /> },
+					{ path: 'tournaments', element: <TournamentsPage /> },
 					{ path: 'submissions', element: <MySubmissionsPage /> },
 					{ path: 'members', element: <MembersPage /> },
 					{ path: 'admin', element: <AdminPage /> }

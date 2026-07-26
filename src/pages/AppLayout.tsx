@@ -35,7 +35,7 @@ export function AppLayout() {
 				<Outlet />
 			</main>
 			<footer className="mx-auto flex max-w-6xl justify-end gap-4 px-4 pb-6 text-sm">
-				<Link className="font-semibold text-slate-500 hover:text-ink" to="/terms">Terms</Link>
+				<Link className="font-semibold text-slate-500 hover:text-ink" to="/terms">Terms and Conditions</Link>
 				<Link className="font-semibold text-slate-500 hover:text-ink" to="/privacy">Privacy</Link>
 			</footer>
 		</div>

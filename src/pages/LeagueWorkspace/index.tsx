@@ -8,7 +8,7 @@ import { PageHeader } from '../../components/PageHeader';
 import { leagueService } from '../../services/leagueService';
 import type { League, Member } from '../../services/types';
 import { useAuthStore } from '../../store/authStore';
-import { AddPointsModal, CreateChallengeModal, ShareLeagueModal } from './Components';
+import { AddPointsModal, CreateChallengeModal, CreateTournamentModal, ShareLeagueModal } from './Components';
 import type { WorkspaceContext } from './context';
 
 export function LeagueWorkspace() {
@@ -19,6 +19,7 @@ export function LeagueWorkspace() {
 	const [dataVersion, setDataVersion] = useState(0);
 	const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
 	const [isCreateChallengeOpen, setIsCreateChallengeOpen] = useState(false);
+	const [isCreateTournamentOpen, setIsCreateTournamentOpen] = useState(false);
 	const [isShareOpen, setIsShareOpen] = useState(false);
 	const { user } = useAuthStore();
 	const currentMember = members.find((member) => member.userId === user?.id);
@@ -87,7 +88,8 @@ export function LeagueWorkspace() {
 					refreshMembers,
 					dataVersion,
 					openAddPointsModal: () => setIsAddPointsOpen(true),
-					openCreateChallengeModal: () => setIsCreateChallengeOpen(true)
+					openCreateChallengeModal: () => setIsCreateChallengeOpen(true),
+					openCreateTournamentModal: () => setIsCreateTournamentOpen(true)
 				} satisfies WorkspaceContext}
 			/>
 			<AddPointsModal
@@ -105,9 +107,16 @@ export function LeagueWorkspace() {
 				onClose={() => setIsCreateChallengeOpen(false)}
 				onSaved={notifyDataChanged}
 			/>
+			<CreateTournamentModal
+				open={isCreateTournamentOpen}
+				league={league}
+				members={members}
+				onClose={() => setIsCreateTournamentOpen(false)}
+				onSaved={notifyDataChanged}
+			/>
 			<ShareLeagueModal open={isShareOpen} league={league} onClose={() => setIsShareOpen(false)} />
 		</div>
 	);
 }
 
-export { AdminPage, ChallengesPage, LeaderboardPage, MembersPage, MySubmissionsPage, OverviewPage, PointsFeedPage } from './Containers';
+export { AdminPage, ChallengesPage, LeaderboardPage, MembersPage, MySubmissionsPage, OverviewPage, PointsFeedPage, TournamentsPage } from './Containers';

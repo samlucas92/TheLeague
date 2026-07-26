@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, ClipboardCheck, Ellipsis, ListChecks, Medal, Radio, Settings, Users } from 'lucide-react';
+import { Activity, ClipboardCheck, Ellipsis, ListChecks, Medal, Radio, Settings, Trophy, Users } from 'lucide-react';
 
 const tabs = [
 	{ to: '', label: 'Overview', icon: Activity },
 	{ to: 'leaderboard', label: 'Leaderboard', icon: Medal },
 	{ to: 'points', label: 'Points Feed', icon: Radio },
 	{ to: 'challenges', label: 'Challenges', icon: ListChecks },
+	{ to: 'tournaments', label: 'Tournaments', icon: Trophy },
 	{ to: 'submissions', label: 'My Submissions', icon: ClipboardCheck },
 	{ to: 'members', label: 'Members', icon: Users },
 	{ to: 'admin', label: 'Admin', icon: Settings }
 ];
 
 const mobilePrimaryTabs = tabs.filter((tab) => tab.to === '' || tab.to === 'leaderboard' || tab.to === 'points');
-const mobileMoreTabs = tabs.filter((tab) => tab.to === 'challenges' || tab.to === 'submissions' || tab.to === 'members' || tab.to === 'admin');
+const mobileMoreTabs = tabs.filter((tab) => tab.to === 'challenges' || tab.to === 'tournaments' || tab.to === 'submissions' || tab.to === 'members' || tab.to === 'admin');
 
 export function LeagueNavigation() {
 	const [isMoreOpen, setIsMoreOpen] = useState(false);

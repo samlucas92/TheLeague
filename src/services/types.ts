@@ -81,6 +81,62 @@ export type ChallengeOutcome = {
 	points?: number | null;
 };
 
+export type Tournament = {
+	id: string;
+	name: string;
+	gameType: 'Pool' | 'DartsHighestScore';
+	format: 'SingleEliminationBracket' | 'RoundElimination';
+	status: 'Draft' | 'Active' | 'Completed' | 'Cancelled';
+	challengeId?: string | null;
+	participantCount: number;
+	winnerPoints: number;
+	runnerUpPoints: number;
+	matchWinPoints: number;
+	eliminatePerRound: number;
+	winnerMemberId?: string | null;
+	winnerName?: string | null;
+	createdAt: string;
+	completedAt?: string | null;
+	participants: TournamentParticipant[];
+	matches: TournamentMatch[];
+	rounds: TournamentRound[];
+};
+
+export type TournamentParticipant = {
+	leagueMemberId: string;
+	displayName: string;
+	seed: number;
+	isEliminated: boolean;
+	totalScore: number;
+};
+
+export type TournamentMatch = {
+	id: string;
+	roundNumber: number;
+	matchNumber: number;
+	playerOneMemberId?: string | null;
+	playerTwoMemberId?: string | null;
+	playerOneScore?: number | null;
+	playerTwoScore?: number | null;
+	winnerMemberId?: string | null;
+	status: 'Pending' | 'Ready' | 'Completed';
+	completedAt?: string | null;
+};
+
+export type TournamentRound = {
+	roundNumber: number;
+	isComplete: boolean;
+	scores: TournamentRoundScore[];
+	eliminatedMemberIds: string[];
+	roundWinnerMemberId?: string | null;
+	completedAt?: string | null;
+};
+
+export type TournamentRoundScore = {
+	leagueMemberId: string;
+	score?: number | null;
+};
+
 export type Submission = {
 	id: string;
 	challengeId?: string | null;
@@ -127,6 +183,7 @@ export type PublicLeagueView = {
 	leaderboard: LeaderboardRow[];
 	pointsFeed: PointsFeedItem[];
 	challenges: Challenge[];
+	tournaments: Tournament[];
 };
 
 export type LeagueAuditItem = {

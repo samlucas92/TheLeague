@@ -11,6 +11,7 @@ export type WorkspaceContext = {
 	dataVersion: number;
 	openAddPointsModal: () => void;
 	openCreateChallengeModal: () => void;
+	openCreateTournamentModal: () => void;
 };
 
 export function useWorkspace() {

@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, Pencil, Plus, Send, Share2, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Plus, Send, Share2, Trash2, Trophy, X } from 'lucide-react';
 import { Button } from '../../../components/Button';
 import { ConfirmationModal } from '../../../components/ConfirmationModal';
 import { Field, SelectInput, TextArea, TextInput } from '../../../components/FormField';
@@ -13,7 +13,7 @@ import { EditChallengeModal, EditMemberModal, EditPointsModal, EmptyState, FeedL
 import { useWorkspace } from '../context';
 
 export function OverviewPage() {
-	const { league, members, dataVersion, openAddPointsModal, openCreateChallengeModal } = useWorkspace();
+	const { league, members, dataVersion, openAddPointsModal, openCreateChallengeModal, openCreateTournamentModal } = useWorkspace();
 	const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
 	const [feed, setFeed] = useState<PointsFeedItem[]>([]);
 	const [error, setError] = useState('');
@@ -44,6 +44,7 @@ export function OverviewPage() {
 						<div className="flex flex-wrap gap-2 lg:justify-end">
 							<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
 							<Button type="button" variant="secondary" icon={<Send size={16} />} onClick={openCreateChallengeModal}>Create challenge</Button>
+							<Button type="button" variant="secondary" icon={<Trophy size={16} />} onClick={openCreateTournamentModal}>Create tournament</Button>
 							<Link to="members"><Button type="button" variant="secondary">View members</Button></Link>
 						</div>
 					</div>
@@ -59,6 +60,7 @@ export function OverviewPage() {
 				<div className="mt-5 flex gap-2">
 					<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
 					<Button type="button" variant="secondary" icon={<Send size={16} />} onClick={openCreateChallengeModal}>Create challenge</Button>
+					<Button type="button" variant="secondary" icon={<Trophy size={16} />} onClick={openCreateTournamentModal}>Create tournament</Button>
 					<Link to="leaderboard"><Button variant="secondary">View leaderboard</Button></Link>
 				</div>
 			</section>
