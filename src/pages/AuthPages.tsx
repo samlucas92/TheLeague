@@ -1,6 +1,6 @@
 import { FormEvent, ReactNode, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
-import { KeyRound, LogIn, Send, UserPlus } from 'lucide-react';
+import { Check, KeyRound, LogIn, Send, UserPlus } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Field, TextInput } from '../components/FormField';
 import { authService } from '../services/authService';
@@ -139,6 +139,44 @@ export function ResetPasswordPage() {
 				<Button icon={<KeyRound size={16} />} loading={isSubmitting} loadingLabel="Resetting..." disabled={!token}>Reset password</Button>
 				<Link className="text-sm font-semibold text-ink underline" to="/login">Back to sign in</Link>
 			</form>
+		</AuthShell>
+	);
+}
+
+export function VerifyEmailPage() {
+	const [searchParams] = useSearchParams();
+	const [message, setMessage] = useState('');
+	const [error, setError] = useState('');
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const token = searchParams.get('token') ?? '';
+	const { user, setUser } = useAuthStore();
+
+	async function verifyEmail() {
+		setError('');
+		setMessage('');
+		setIsSubmitting(true);
+		try {
+			await authService.verifyEmail(token);
+			setMessage('Email verified. You are good to go.');
+			if (user) {
+				setUser({ ...user, isEmailVerified: true });
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Could not verify email.');
+		} finally {
+			setIsSubmitting(false);
+		}
+	}
+
+	return (
+		<AuthShell title="Verify your email" subtitle="Confirm this email address for your account.">
+			<div className="grid gap-4">
+				{!token ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">Verification token is missing. Request a new verification email from your account page.</p> : null}
+				{message ? <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{message}</p> : null}
+				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+				<Button icon={<Check size={16} />} loading={isSubmitting} loadingLabel="Verifying..." disabled={!token || Boolean(message)} onClick={verifyEmail}>Verify email</Button>
+				<Link className="text-sm font-semibold text-ink underline" to={user ? '/account' : '/login'}>{user ? 'Back to account' : 'Back to sign in'}</Link>
+			</div>
 		</AuthShell>
 	);
 }

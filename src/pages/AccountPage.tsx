@@ -1,5 +1,5 @@
 import { FormEvent, useState } from 'react';
-import { Check, KeyRound } from 'lucide-react';
+import { Check, KeyRound, MailCheck, Send } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Field, TextInput } from '../components/FormField';
 import { PageHeader } from '../components/PageHeader';
@@ -14,6 +14,9 @@ export function AccountPage() {
 	const [message, setMessage] = useState('');
 	const [error, setError] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [verificationMessage, setVerificationMessage] = useState('');
+	const [verificationError, setVerificationError] = useState('');
+	const [isSendingVerification, setIsSendingVerification] = useState(false);
 
 	async function submit(event: FormEvent) {
 		event.preventDefault();
@@ -39,6 +42,20 @@ export function AccountPage() {
 		}
 	}
 
+	async function resendVerification() {
+		setVerificationMessage('');
+		setVerificationError('');
+		setIsSendingVerification(true);
+		try {
+			const response = await authService.resendEmailVerification();
+			setVerificationMessage(response.message);
+		} catch (err) {
+			setVerificationError(err instanceof Error ? err.message : 'Could not send verification email.');
+		} finally {
+			setIsSendingVerification(false);
+		}
+	}
+
 	return (
 		<div className="grid gap-6">
 			<PageHeader title="Account" description="Manage your sign-in details." />
@@ -48,8 +65,30 @@ export function AccountPage() {
 					<div className="mt-3 grid gap-2 rounded-md bg-slate-50 px-3 py-3 text-sm text-slate-700">
 						<p><span className="font-semibold text-ink">Name:</span> {user?.name}</p>
 						<p><span className="font-semibold text-ink">Email:</span> {user?.emailAddress}</p>
+						<p className="flex flex-wrap items-center gap-2">
+							<span className="font-semibold text-ink">Verification:</span>
+							<span className={user?.isEmailVerified ? 'rounded bg-emerald-100 px-2 py-1 font-semibold text-emerald-800' : 'rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800'}>
+								{user?.isEmailVerified ? 'Verified' : 'Not verified'}
+							</span>
+						</p>
 					</div>
 				</div>
+				{user?.isEmailVerified ? null : (
+					<div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+						<div className="flex items-start gap-3">
+							<MailCheck className="mt-1 text-amber-700" size={20} />
+							<div>
+								<h2 className="text-base font-bold text-ink">Verify your email</h2>
+								<p className="mt-1 text-sm text-slate-700">Send a verification link to unlock verified account status.</p>
+							</div>
+						</div>
+						{verificationMessage ? <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{verificationMessage}</p> : null}
+						{verificationError ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{verificationError}</p> : null}
+						<div className="flex justify-end">
+							<Button type="button" icon={<Send size={16} />} loading={isSendingVerification} loadingLabel="Sending..." onClick={resendVerification}>Send verification email</Button>
+						</div>
+					</div>
+				)}
 				<form className="grid gap-4 border-t border-slate-100 pt-5" onSubmit={submit}>
 					<div>
 						<h2 className="text-lg font-bold text-ink">Change password</h2>

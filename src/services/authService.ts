@@ -19,6 +19,10 @@ export const authService = {
 		postJson<{ message: string; resetLink?: string | null; expiresAt?: string | null }>('/auth/forgot-password', { emailAddress }),
 	resetPassword: (token: string, newPassword: string) =>
 		postJson<void>('/auth/reset-password', { token, newPassword }),
+	resendEmailVerification: () =>
+		postJson<{ message: string }>('/auth/email-verification'),
+	verifyEmail: (token: string) =>
+		postJson<void>('/auth/verify-email', { token }),
 	signout: async () => {
 		try {
 			await postJson<void>('/auth/signout');

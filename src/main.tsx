@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom';
 import { AccountPage } from './pages/AccountPage';
 import { AppLayout } from './pages/AppLayout';
-import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from './pages/AuthPages';
+import { ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage, VerifyEmailPage } from './pages/AuthPages';
 import { CreateLeaguePage, JoinLeaguePage } from './pages/CreateJoinPages';
 import { LeagueListPage } from './pages/LeagueListPage';
 import {
@@ -28,6 +28,7 @@ const router = createBrowserRouter([
 	{ path: '/register', element: <RegisterPage />, errorElement: <AppErrorPage /> },
 	{ path: '/forgot-password', element: <ForgotPasswordPage />, errorElement: <AppErrorPage /> },
 	{ path: '/reset-password', element: <ResetPasswordPage />, errorElement: <AppErrorPage /> },
+	{ path: '/verify-email', element: <VerifyEmailPage />, errorElement: <AppErrorPage /> },
 	{ path: '/view', element: <PublicLeagueViewPage />, errorElement: <AppErrorPage /> },
 	{ path: '/view/:joinCode', element: <PublicLeagueViewPage />, errorElement: <AppErrorPage /> },
 	{
