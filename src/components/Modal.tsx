@@ -8,16 +8,17 @@ type ModalProps = {
 	description?: string;
 	children: ReactNode;
 	onClose: () => void;
+	size?: 'default' | 'wide';
 };
 
-export function Modal({ open, title, description, children, onClose }: ModalProps) {
+export function Modal({ open, title, description, children, onClose, size = 'default' }: ModalProps) {
 	if (!open) {
 		return null;
 	}
 
 	return (
 		<div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/45 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-			<section className="flex max-h-[90vh] w-full min-w-0 max-w-xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
+			<section className={`flex max-h-[90vh] w-full min-w-0 flex-col overflow-hidden rounded-lg bg-white shadow-xl ${size === 'wide' ? 'max-w-3xl' : 'max-w-xl'}`}>
 				<header className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4">
 					<div>
 						<h2 id="modal-title" className="text-xl font-bold text-ink">{title}</h2>
