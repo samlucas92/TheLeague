@@ -22,7 +22,6 @@ export function TournamentMatchView({ leagueId, tournament, match, canManage, me
 				<Button type="button" variant="ghost" className="px-2" icon={<X size={16} />} onClick={onBack} aria-label="Close match" />
 			</div>
 			<div className="mt-6 grid gap-5 text-center">
-				<MatchScoreHeader tournament={tournament} match={match} playerOne={playerOne} playerTwo={playerTwo} />
 				{isLiveDartsMatch ? (
 					<LiveDartsScorer
 						leagueId={leagueId}
@@ -34,15 +33,18 @@ export function TournamentMatchView({ leagueId, tournament, match, canManage, me
 						onChanged={onChanged}
 					/>
 				) : (
-					<SimpleMatchScoreForm
-						leagueId={leagueId}
-						tournament={tournament}
-						match={match}
-						canManage={canManage}
-						playerOne={playerOne}
-						playerTwo={playerTwo}
-						onChanged={onChanged}
-					/>
+					<>
+						<MatchScoreHeader tournament={tournament} match={match} playerOne={playerOne} playerTwo={playerTwo} />
+						<SimpleMatchScoreForm
+							leagueId={leagueId}
+							tournament={tournament}
+							match={match}
+							canManage={canManage}
+							playerOne={playerOne}
+							playerTwo={playerTwo}
+							onChanged={onChanged}
+						/>
+					</>
 				)}
 			</div>
 		</section>

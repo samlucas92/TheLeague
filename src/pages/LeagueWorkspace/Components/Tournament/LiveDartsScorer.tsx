@@ -6,32 +6,31 @@ import { leagueService } from '../../../../services/leagueService';
 import type { Tournament, TournamentMatch } from '../../../../services/types';
 import { Avatar } from './Shared';
 
-type DartsLegResult = {
-	winnerMemberId: string;
-	winnerName: string;
-	playerOneRemaining: number;
-	playerTwoRemaining: number;
-	playerOneLegs: number;
-	playerTwoLegs: number;
-};
-
 export function LiveDartsScorer({ leagueId, tournament, match, canManage, playerOne, playerTwo, onChanged }: { leagueId: string; tournament: Tournament; match: TournamentMatch; canManage: boolean; playerOne: string; playerTwo: string; onChanged: () => Promise<void> }) {
 	const startScore = tournament.startScore ?? (tournament.gameType === 'Darts501' ? 501 : 301);
 	const targetLegs = tournament.matchRule === 'BestOf' ? Math.floor((tournament.framesOrLegs || 1) / 2) + 1 : tournament.framesOrLegs || 1;
-	const [activePlayerId, setActivePlayerId] = useState(match.playerOneMemberId ?? '');
+	const playerOneId = match.playerOneMemberId ?? '';
+	const playerTwoId = match.playerTwoMemberId ?? '';
+	const [throwFirstMemberId, setThrowFirstMemberId] = useState(playerOneId);
+	const [gameStarted, setGameStarted] = useState(match.status === 'Completed');
+	const [activePlayerId, setActivePlayerId] = useState(match.status === 'Completed' ? playerOneId : '');
 	const [playerOneRemaining, setPlayerOneRemaining] = useState(startScore);
 	const [playerTwoRemaining, setPlayerTwoRemaining] = useState(startScore);
 	const [playerOneLegs, setPlayerOneLegs] = useState(match.playerOneScore ?? 0);
 	const [playerTwoLegs, setPlayerTwoLegs] = useState(match.playerTwoScore ?? 0);
 	const [visitScore, setVisitScore] = useState('');
-	const [legHistory, setLegHistory] = useState<DartsLegResult[]>([]);
-	const [turnHistory, setTurnHistory] = useState<Array<{ activePlayerId: string; playerOneRemaining: number; playerTwoRemaining: number; playerOneLegs: number; playerTwoLegs: number; legHistory: DartsLegResult[] }>>([]);
+	const [turnHistory, setTurnHistory] = useState<Array<{ activePlayerId: string; playerOneRemaining: number; playerTwoRemaining: number; playerOneLegs: number; playerTwoLegs: number }>>([]);
 	const [error, setError] = useState('');
 	const [isCompleting, setIsCompleting] = useState(false);
-	const playerOneId = match.playerOneMemberId ?? '';
-	const playerTwoId = match.playerTwoMemberId ?? '';
-	const activePlayerName = activePlayerId === playerTwoId ? playerTwo : playerOne;
+	const activePlayerName = activePlayerId === playerTwoId ? playerTwo : activePlayerId === playerOneId ? playerOne : 'Choose who throws first';
+	const activeRemaining = activePlayerId === playerTwoId ? playerTwoRemaining : playerOneRemaining;
 	const matchComplete = match.status === 'Completed' || playerOneLegs >= targetLegs || playerTwoLegs >= targetLegs;
+
+	function startGame() {
+		setActivePlayerId(throwFirstMemberId);
+		setGameStarted(true);
+		setError('');
+	}
 
 	function changeTurn() {
 		setActivePlayerId((current) => current === playerOneId ? playerTwoId : playerOneId);
@@ -40,7 +39,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	function submitVisit(event: FormEvent) {
 		event.preventDefault();
 		const score = Number(visitScore);
-		if (!canManage || matchComplete || !Number.isInteger(score) || score < 0 || score > 180) {
+		if (!canManage || !gameStarted || matchComplete || !Number.isInteger(score) || score < 0 || score > 180) {
 			setError('Enter a score between 0 and 180.');
 			return;
 		}
@@ -51,24 +50,15 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 			return;
 		}
 
-		setTurnHistory((history) => [...history, { activePlayerId, playerOneRemaining, playerTwoRemaining, playerOneLegs, playerTwoLegs, legHistory }]);
+		setTurnHistory((history) => [...history, { activePlayerId, playerOneRemaining, playerTwoRemaining, playerOneLegs, playerTwoLegs }]);
 		setError('');
 		setVisitScore('');
 
 		if (score === currentRemaining) {
 			const nextPlayerOneLegs = playerOneLegs + (activePlayerId === playerOneId ? 1 : 0);
 			const nextPlayerTwoLegs = playerTwoLegs + (activePlayerId === playerTwoId ? 1 : 0);
-			const winnerName = activePlayerId === playerOneId ? playerOne : playerTwo;
 			setPlayerOneLegs(nextPlayerOneLegs);
 			setPlayerTwoLegs(nextPlayerTwoLegs);
-			setLegHistory((history) => [...history, {
-				winnerMemberId: activePlayerId,
-				winnerName,
-				playerOneRemaining: activePlayerId === playerOneId ? 0 : playerOneRemaining,
-				playerTwoRemaining: activePlayerId === playerTwoId ? 0 : playerTwoRemaining,
-				playerOneLegs: nextPlayerOneLegs,
-				playerTwoLegs: nextPlayerTwoLegs
-			}]);
 			setPlayerOneRemaining(startScore);
 			setPlayerTwoRemaining(startScore);
 			changeTurn();
@@ -94,7 +84,6 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 		setPlayerTwoRemaining(previous.playerTwoRemaining);
 		setPlayerOneLegs(previous.playerOneLegs);
 		setPlayerTwoLegs(previous.playerTwoLegs);
-		setLegHistory(previous.legHistory);
 		setTurnHistory((history) => history.slice(0, -1));
 		setError('');
 	}
@@ -119,7 +108,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	return (
 		<div className="grid gap-4 border-t border-slate-100 pt-4">
 			<div className="grid gap-4 lg:grid-cols-[1fr_18rem_1fr]">
-				<DartsPlayerPanel name={playerOne} score={startScore} remaining={playerOneRemaining} active={activePlayerId === playerOneId} />
+				<DartsPlayerPanel name={playerOne} score={startScore} remaining={playerOneRemaining} active={gameStarted && activePlayerId === playerOneId} legs={playerOneLegs} />
 				<div className="rounded-lg border border-slate-200 p-4">
 					<p className="text-xs font-bold uppercase text-slate-500">Legs</p>
 					<p className="mt-2 text-4xl font-bold text-ink">{playerOneLegs} - {playerTwoLegs}</p>
@@ -129,46 +118,61 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 						<p>{tournament.doubleOutRequired ? 'Double out required' : 'Double out not required'}</p>
 					</div>
 				</div>
-				<DartsPlayerPanel name={playerTwo} score={startScore} remaining={playerTwoRemaining} active={activePlayerId === playerTwoId} tone="green" />
+				<DartsPlayerPanel name={playerTwo} score={startScore} remaining={playerTwoRemaining} active={gameStarted && activePlayerId === playerTwoId} legs={playerTwoLegs} tone="green" />
 			</div>
-			<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
-				<div className="rounded-lg border border-slate-200 p-4">
-					<h3 className="font-bold text-ink">Leg history</h3>
-					<div className="mt-3 grid gap-2 text-sm">
-						{Array.from({ length: Math.max(targetLegs * 2 - 1, tournament.framesOrLegs || 1) }).map((_, index) => {
-							const leg = legHistory[index];
-							return (
-								<div key={index} className="grid grid-cols-[4rem_1fr_auto] rounded-md bg-slate-50 px-3 py-2 text-left">
-									<span className="text-slate-500">Leg {index + 1}</span>
-									<span className="font-semibold text-ink">{leg?.winnerName ?? '-'}</span>
-									<span className="text-slate-500">{leg ? `${leg.playerOneLegs} - ${leg.playerTwoLegs}` : 'Not started'}</span>
-								</div>
-							);
-						})}
+			{gameStarted || match.status === 'Completed' ? null : (
+				<div className="rounded-lg border border-slate-200 p-4 text-left">
+					<h3 className="font-bold text-ink">Throw first</h3>
+					<div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+						<ThrowFirstButton name={playerOne} selected={throwFirstMemberId === playerOneId} onClick={() => setThrowFirstMemberId(playerOneId)} />
+						<ThrowFirstButton name={playerTwo} selected={throwFirstMemberId === playerTwoId} onClick={() => setThrowFirstMemberId(playerTwoId)} />
+						<Button type="button" className="sm:self-end" onClick={startGame} disabled={!canManage || !throwFirstMemberId}>Start game</Button>
 					</div>
 				</div>
-				<form className="grid content-start gap-3 rounded-lg border border-slate-200 p-4 text-left" onSubmit={submitVisit}>
-					<h3 className="font-bold text-ink">Current throw</h3>
-					<p className="text-sm text-slate-600">{activePlayerName} to throw.</p>
-					<Field label="Score this visit">
-						<TextInput type="number" min="0" max="180" value={visitScore} onChange={(event) => setVisitScore(event.target.value)} disabled={!canManage || matchComplete} placeholder="e.g. 60" />
-					</Field>
-					<div className="grid grid-cols-3 gap-2">
-						{[26, 41, 60, 85, 100, 140, 180].map((score) => (
-							<button key={score} type="button" className="rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-ink hover:bg-slate-50" onClick={() => setVisitScore(String(score))} disabled={!canManage || matchComplete}>{score}</button>
-						))}
+			)}
+			<form className="grid gap-4 rounded-lg border border-slate-200 p-4 text-left" onSubmit={submitVisit}>
+				<div className="flex flex-wrap items-start justify-between gap-3">
+					<div>
+						<h3 className="font-bold text-ink">Scorer</h3>
+						<p className="mt-1 text-sm text-slate-600">{gameStarted ? `${activePlayerName} to throw.` : 'Choose who throws first, then start the game.'}</p>
 					</div>
-					{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-					<Button type="submit" disabled={!canManage || matchComplete}>Enter score</Button>
-					<Button type="button" variant="secondary" icon={<RotateCcw size={16} />} onClick={undoLastTurn} disabled={!canManage || turnHistory.length === 0 || match.status === 'Completed'}>Undo last dart</Button>
-					<Button type="button" loading={isCompleting} loadingLabel="Completing..." disabled={!canManage || !matchComplete || match.status === 'Completed'} onClick={completeMatch}>Complete match</Button>
-				</form>
-			</div>
+					<div className="rounded-md bg-slate-50 px-4 py-2 text-right">
+						<p className="text-xs font-bold uppercase text-slate-500">Remaining</p>
+						<p className="text-2xl font-bold text-ink">{gameStarted ? activeRemaining : '-'}</p>
+					</div>
+				</div>
+				<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+					<div className="grid gap-3">
+						<Field label="Score this visit">
+							<TextInput className="min-h-16 text-center text-3xl font-bold" type="number" min="0" max="180" value={visitScore} onChange={(event) => setVisitScore(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} placeholder="0" />
+						</Field>
+						<div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+							{[26, 41, 45, 60, 81, 85, 100, 121, 125, 140, 160, 180].map((score) => (
+								<button key={score} type="button" className="min-h-12 rounded-md border border-slate-200 px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => setVisitScore(String(score))} disabled={!canManage || !gameStarted || matchComplete}>{score}</button>
+							))}
+						</div>
+					</div>
+					<div className="grid content-start gap-2">
+						<Button type="submit" disabled={!canManage || !gameStarted || matchComplete}>Enter score</Button>
+						<Button type="button" variant="secondary" icon={<RotateCcw size={16} />} onClick={undoLastTurn} disabled={!canManage || turnHistory.length === 0 || match.status === 'Completed'}>Undo last dart</Button>
+						<Button type="button" loading={isCompleting} loadingLabel="Completing..." disabled={!canManage || !matchComplete || match.status === 'Completed'} onClick={completeMatch}>Complete match</Button>
+					</div>
+				</div>
+				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+			</form>
 		</div>
 	);
 }
 
-function DartsPlayerPanel({ name, score, remaining, active, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; tone?: 'blue' | 'green' }) {
+function ThrowFirstButton({ name, selected, onClick }: { name: string; selected: boolean; onClick: () => void }) {
+	return (
+		<button type="button" className={selected ? 'rounded-md border border-blue-600 bg-blue-50 px-4 py-3 text-left font-bold text-ink' : 'rounded-md border border-slate-200 bg-white px-4 py-3 text-left font-semibold text-slate-700 hover:bg-slate-50'} onClick={onClick}>
+			{name}
+		</button>
+	);
+}
+
+function DartsPlayerPanel({ name, score, remaining, active, legs, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; legs: number; tone?: 'blue' | 'green' }) {
 	return (
 		<div className={active ? 'rounded-lg border border-blue-500 bg-blue-50/30 p-4 text-center' : 'rounded-lg border border-slate-200 p-4 text-center'}>
 			<Avatar name={name} large tone={tone === 'green' ? 'green' : 'blue'} />
@@ -176,7 +180,7 @@ function DartsPlayerPanel({ name, score, remaining, active, tone = 'blue' }: { n
 			<p className="mt-4 rounded-md border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-600">{score}</p>
 			<p className="mt-4 text-xs font-bold uppercase text-slate-500">Current score</p>
 			<p className="mt-1 text-3xl font-bold text-ink">{remaining}</p>
-			<p className="mt-2 text-xs font-semibold text-slate-500">{active ? 'To throw' : 'Waiting'}</p>
+			<p className="mt-2 text-xs font-semibold text-slate-500">{legs} legs won</p>
 		</div>
 	);
 }
