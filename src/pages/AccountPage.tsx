@@ -6,7 +6,7 @@ import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { adminService } from '../services/adminService';
 import { authService } from '../services/authService';
-import type { EmailAuditItem } from '../services/types';
+import type { EmailAuditItem, SiteUserAdminItem } from '../services/types';
 import { useAuthStore } from '../store/authStore';
 
 export function AccountPage() {
@@ -20,12 +20,17 @@ export function AccountPage() {
 	const [verificationMessage, setVerificationMessage] = useState('');
 	const [verificationError, setVerificationError] = useState('');
 	const [isSendingVerification, setIsSendingVerification] = useState(false);
-	const [activeTab, setActiveTab] = useState<'profile' | 'emails'>('profile');
+	const [activeTab, setActiveTab] = useState<'profile' | 'users' | 'emails'>('profile');
 	const [emails, setEmails] = useState<EmailAuditItem[]>([]);
+	const [siteUsers, setSiteUsers] = useState<SiteUserAdminItem[]>([]);
 	const [emailError, setEmailError] = useState('');
 	const [emailMessage, setEmailMessage] = useState('');
 	const [pendingEmailAction, setPendingEmailAction] = useState<string | null>(null);
 	const [isLoadingEmails, setIsLoadingEmails] = useState(false);
+	const [usersError, setUsersError] = useState('');
+	const [usersMessage, setUsersMessage] = useState('');
+	const [pendingUserAction, setPendingUserAction] = useState<string | null>(null);
+	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 
 	async function loadEmails() {
 		if (!user?.isSiteAdmin) {
@@ -47,7 +52,27 @@ export function AccountPage() {
 		if (activeTab === 'emails') {
 			loadEmails();
 		}
+
+		if (activeTab === 'users') {
+			loadSiteUsers();
+		}
 	}, [activeTab, user?.isSiteAdmin]);
+
+	async function loadSiteUsers() {
+		if (!user?.isSiteAdmin) {
+			return;
+		}
+
+		setUsersError('');
+		setIsLoadingUsers(true);
+		try {
+			setSiteUsers(await adminService.users());
+		} catch (err) {
+			setUsersError(err instanceof Error ? err.message : 'Could not load users.');
+		} finally {
+			setIsLoadingUsers(false);
+		}
+	}
 
 	async function submit(event: FormEvent) {
 		event.preventDefault();
@@ -102,12 +127,28 @@ export function AccountPage() {
 		}
 	}
 
+	async function setSiteAdminStatus(siteUser: SiteUserAdminItem, isSiteAdmin: boolean) {
+		setUsersError('');
+		setUsersMessage('');
+		setPendingUserAction(siteUser.id);
+		try {
+			await adminService.setSiteAdmin(siteUser.id, isSiteAdmin);
+			setUsersMessage(`${siteUser.name} updated.`);
+			await loadSiteUsers();
+		} catch (err) {
+			setUsersError(err instanceof Error ? err.message : 'Could not update user.');
+		} finally {
+			setPendingUserAction(null);
+		}
+	}
+
 	return (
 		<div className="grid gap-6">
 			<PageHeader title="Account" description="Manage your sign-in details." />
 			{user?.isSiteAdmin ? (
 				<div className="flex flex-wrap gap-2 border-b border-slate-200">
 					<button className={activeTab === 'profile' ? 'border-b-2 border-ink px-3 py-2 text-sm font-bold text-ink' : 'px-3 py-2 text-sm font-bold text-slate-500'} onClick={() => setActiveTab('profile')}>Profile</button>
+					<button className={activeTab === 'users' ? 'border-b-2 border-ink px-3 py-2 text-sm font-bold text-ink' : 'px-3 py-2 text-sm font-bold text-slate-500'} onClick={() => setActiveTab('users')}>Users</button>
 					<button className={activeTab === 'emails' ? 'border-b-2 border-ink px-3 py-2 text-sm font-bold text-ink' : 'px-3 py-2 text-sm font-bold text-slate-500'} onClick={() => setActiveTab('emails')}>Email outbox</button>
 				</div>
 			) : null}
@@ -163,6 +204,48 @@ export function AccountPage() {
 					</div>
 				</form>
 			</section>
+			) : null}
+			{user?.isSiteAdmin && activeTab === 'users' ? (
+				<section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+					<div className="flex flex-wrap items-start justify-between gap-3">
+						<div>
+							<h2 className="text-lg font-bold text-ink">Users</h2>
+							<p className="mt-1 text-sm text-slate-600">Registered accounts and platform admin access.</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<StatusBadge label={`${siteUsers.length} users`} />
+							<Button type="button" variant="secondary" loading={isLoadingUsers} loadingLabel="Loading..." onClick={loadSiteUsers}>Refresh</Button>
+						</div>
+					</div>
+					{usersMessage ? <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">{usersMessage}</p> : null}
+					{usersError ? <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{usersError}</p> : null}
+					<div className="mt-4 grid gap-3">
+						{siteUsers.map((siteUser) => (
+							<article key={siteUser.id} className="grid gap-3 rounded-md border border-slate-200 p-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+								<div className="min-w-0">
+									<div className="flex flex-wrap items-center gap-2">
+										<p className="font-semibold text-ink">{siteUser.name}</p>
+										<StatusBadge label={siteUser.isEmailVerified ? 'Verified' : 'Unverified'} tone={siteUser.isEmailVerified ? 'good' : 'warning'} />
+										{siteUser.isSiteAdmin ? <StatusBadge label="Site admin" tone="good" /> : null}
+									</div>
+									<p className="mt-1 break-all text-sm text-slate-700">{siteUser.emailAddress}</p>
+									<p className="mt-1 text-xs text-slate-500">Joined {new Date(siteUser.createdAt).toLocaleString()}</p>
+								</div>
+								<Button
+									type="button"
+									variant={siteUser.isSiteAdmin ? 'secondary' : 'primary'}
+									loading={pendingUserAction === siteUser.id}
+									loadingLabel="Updating..."
+									disabled={siteUser.id === user.id && siteUser.isSiteAdmin}
+									onClick={() => setSiteAdminStatus(siteUser, !siteUser.isSiteAdmin)}
+								>
+									{siteUser.isSiteAdmin ? 'Remove admin' : 'Make admin'}
+								</Button>
+							</article>
+						))}
+						{siteUsers.length === 0 && !isLoadingUsers ? <p className="text-sm text-slate-600">No users found.</p> : null}
+					</div>
+				</section>
 			) : null}
 			{user?.isSiteAdmin && activeTab === 'emails' ? (
 				<section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

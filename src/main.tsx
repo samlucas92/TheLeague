@@ -17,6 +17,7 @@ import {
 	PointsFeedPage
 } from './pages/LeagueWorkspace';
 import { PublicLeagueViewPage } from './pages/PublicLeagueViewPage';
+import { TermsPage } from './pages/TermsPage';
 import { AppErrorPage } from './components/AppErrorPage';
 import { PwaStatus } from './components/PwaStatus';
 import { WarmUpSplash } from './components/WarmUpSplash';
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
 	{ path: '/forgot-password', element: <ForgotPasswordPage />, errorElement: <AppErrorPage /> },
 	{ path: '/reset-password', element: <ResetPasswordPage />, errorElement: <AppErrorPage /> },
 	{ path: '/verify-email', element: <VerifyEmailPage />, errorElement: <AppErrorPage /> },
+	{ path: '/terms', element: <TermsPage />, errorElement: <AppErrorPage /> },
 	{ path: '/view', element: <PublicLeagueViewPage />, errorElement: <AppErrorPage /> },
 	{ path: '/view/:joinCode', element: <PublicLeagueViewPage />, errorElement: <AppErrorPage /> },
 	{

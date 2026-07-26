@@ -155,3 +155,13 @@ export type EmailAuditItem = {
 	sentAt?: string | null;
 	nextAttemptAt?: string | null;
 };
+
+export type SiteUserAdminItem = {
+	id: string;
+	name: string;
+	emailAddress: string;
+	isEmailVerified: boolean;
+	isSiteAdmin: boolean;
+	createdAt: string;
+	emailVerifiedAt?: string | null;
+};
