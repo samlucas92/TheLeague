@@ -28,7 +28,7 @@ export function NextMatchMini({ match, memberNames }: { match: TournamentMatch; 
 	);
 }
 
-export function NextMatchLarge({ match, memberNames, tournament }: { match: TournamentMatch; memberNames: Map<string, string>; tournament?: Tournament }) {
+export function NextMatchLarge({ match, memberNames, tournament, onView }: { match: TournamentMatch; memberNames: Map<string, string>; tournament?: Tournament; onView?: () => void }) {
 	const playerOne = memberNames.get(match.playerOneMemberId ?? '') ?? 'TBD';
 	const playerTwo = memberNames.get(match.playerTwoMemberId ?? '') ?? 'TBD';
 	return (
@@ -42,7 +42,7 @@ export function NextMatchLarge({ match, memberNames, tournament }: { match: Tour
 				<Meta icon={<Clock size={15} />} label="Today, 18:30" />
 				<Meta icon={<Trophy size={15} />} label={tournament ? matchFormatLabel(tournament) : 'Best of 7'} />
 			</div>
-			<Button type="button" variant="secondary">View match</Button>
+			<Button type="button" variant="secondary" onClick={onView}>View match</Button>
 		</div>
 	);
 }

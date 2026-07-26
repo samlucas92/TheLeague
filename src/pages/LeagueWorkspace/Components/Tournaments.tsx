@@ -9,8 +9,10 @@ import type { League, Member } from '../../../services/types';
 type GameChoice = 'Pool' | 'Darts';
 type DartsMode = 'Darts301' | 'Darts501' | 'DartsHighestScore';
 type PoolMatchFormat = 'FirstToFrames' | 'BestOfFrames';
+type TournamentStructure = 'LeagueAndKnockout' | 'KnockoutOnly';
+type PoolBreakRule = 'NormalBreak' | 'WinnerBreak' | 'AlternateBreak';
 
-const steps = ['Game & format', 'Settings', 'Players', 'Review'];
+const steps = ['Type', 'Structure', 'Format', 'Settings', 'Players', 'Review'];
 
 export function CreateTournamentModal({
 	open,
@@ -33,11 +35,14 @@ export function CreateTournamentModal({
 	const [startsTime, setStartsTime] = useState('');
 	const [description, setDescription] = useState('');
 	const [notes, setNotes] = useState('');
+	const [structure, setStructure] = useState<TournamentStructure>('LeagueAndKnockout');
 	const [poolMatchFormat, setPoolMatchFormat] = useState<PoolMatchFormat>('FirstToFrames');
 	const [poolFrames, setPoolFrames] = useState('5');
+	const [breakRule, setBreakRule] = useState<PoolBreakRule>('NormalBreak');
 	const [poolRules, setPoolRules] = useState<string[]>(['8-ball']);
 	const [requireCallShot, setRequireCallShot] = useState(false);
 	const [allowRerack, setAllowRerack] = useState(false);
+	const [pushOutAfterFouls, setPushOutAfterFouls] = useState(false);
 	const [doubleIn, setDoubleIn] = useState(true);
 	const [doubleOut, setDoubleOut] = useState(true);
 	const [roundTimeLimit, setRoundTimeLimit] = useState('No limit');
@@ -96,12 +101,12 @@ export function CreateTournamentModal({
 			return;
 		}
 
-		if (step === 3 && participantMemberIds.length < 2) {
+		if (step === 5 && participantMemberIds.length < 2) {
 			setError('Choose at least two players.');
 			return;
 		}
 
-		setStep((current) => Math.min(4, current + 1));
+		setStep((current) => Math.min(6, current + 1));
 	}
 
 	async function submit(event: FormEvent) {
@@ -115,6 +120,19 @@ export function CreateTournamentModal({
 				name,
 				gameType: gameChoice === 'Pool' ? 'Pool' : dartsMode,
 				format: isDartsHighestScore ? 'RoundElimination' : 'SingleEliminationBracket',
+				structure,
+				matchRule: poolMatchFormat === 'FirstToFrames' ? 'FirstTo' : 'BestOf',
+				framesOrLegs: Number(poolFrames),
+				poolRules: gameChoice === 'Pool' ? poolRules : [],
+				breakRule,
+				callShotRequired: requireCallShot,
+				allowRerack,
+				pushOutAfterFouls,
+				doubleInRequired: doubleIn,
+				doubleOutRequired: doubleOut,
+				startScore: dartsMode === 'Darts301' ? 301 : dartsMode === 'Darts501' ? 501 : null,
+				minimumPlayers: Number(minimumPlayers),
+				roundTimeLimitMinutes: parseTimeLimit(roundTimeLimit),
 				participantMemberIds,
 				winnerPoints: Number(winnerPoints),
 				runnerUpPoints: Number(runnerUpPoints),
@@ -195,24 +213,37 @@ export function CreateTournamentModal({
 						</div>
 					</div>
 				) : null}
-				{step === 2 && gameChoice === 'Pool' ? (
-					<PoolSettings
+				{step === 2 ? (
+					<TournamentStructureStep structure={structure} setStructure={setStructure} />
+				) : null}
+				{step === 3 ? (
+					<MatchFormatStep
+						gameChoice={gameChoice}
+						dartsMode={dartsMode}
+						setDartsMode={setDartsMode}
 						poolMatchFormat={poolMatchFormat}
 						setPoolMatchFormat={setPoolMatchFormat}
 						poolFrames={poolFrames}
 						setPoolFrames={setPoolFrames}
+					/>
+				) : null}
+				{step === 4 && gameChoice === 'Pool' ? (
+					<PoolSettings
+						breakRule={breakRule}
+						setBreakRule={setBreakRule}
 						poolRules={poolRules}
 						togglePoolRule={togglePoolRule}
 						requireCallShot={requireCallShot}
 						setRequireCallShot={setRequireCallShot}
 						allowRerack={allowRerack}
 						setAllowRerack={setAllowRerack}
+						pushOutAfterFouls={pushOutAfterFouls}
+						setPushOutAfterFouls={setPushOutAfterFouls}
 					/>
 				) : null}
-				{step === 2 && gameChoice === 'Darts' ? (
+				{step === 4 && gameChoice === 'Darts' ? (
 					<DartsSettings
 						dartsMode={dartsMode}
-						setDartsMode={setDartsMode}
 						doubleIn={doubleIn}
 						setDoubleIn={setDoubleIn}
 						doubleOut={doubleOut}
@@ -225,7 +256,7 @@ export function CreateTournamentModal({
 						setMinimumPlayers={setMinimumPlayers}
 					/>
 				) : null}
-				{step === 3 ? (
+				{step === 5 ? (
 					<div className="grid gap-4">
 						<div>
 							<h3 className="text-lg font-bold text-ink">Add players</h3>
@@ -251,7 +282,7 @@ export function CreateTournamentModal({
 						</div>
 					</div>
 				) : null}
-				{step === 4 ? (
+				{step === 6 ? (
 					<div className="grid gap-4">
 						<div>
 							<h3 className="text-lg font-bold text-ink">Review tournament</h3>
@@ -260,6 +291,8 @@ export function CreateTournamentModal({
 						<div className="grid gap-3 rounded-md bg-slate-50 p-4 text-sm text-slate-700">
 							<p><span className="font-bold text-ink">Name:</span> {name}</p>
 							<p><span className="font-bold text-ink">Game:</span> {gameChoice === 'Pool' ? 'Pool knockout' : formatDartsMode(dartsMode)}</p>
+							<p><span className="font-bold text-ink">Structure:</span> {formatStructure(structure)}</p>
+							<p><span className="font-bold text-ink">Format:</span> {formatMatchRule(poolMatchFormat, poolFrames, gameChoice)}</p>
 							<p><span className="font-bold text-ink">Players:</span> {selectedMembers.map((member) => member.displayName).join(', ')}</p>
 							<p><span className="font-bold text-ink">Scoring:</span> Winner {formatSignedPoints(Number(winnerPoints))}, runner-up {formatSignedPoints(Number(runnerUpPoints))}, match win {formatSignedPoints(Number(matchWinPoints))}</p>
 							{description ? <p><span className="font-bold text-ink">Description:</span> {description}</p> : null}
@@ -283,7 +316,7 @@ export function CreateTournamentModal({
 					<Button type="button" variant="secondary" onClick={step === 1 ? onClose : () => setStep((current) => current - 1)}>
 						{step === 1 ? 'Cancel' : 'Previous'}
 					</Button>
-					{step < 4 ? (
+					{step < 6 ? (
 						<Button type="button" icon={<ChevronRight size={16} />} onClick={nextStep}>Next</Button>
 					) : (
 						<Button type="submit" icon={<Trophy size={16} />} loading={isSubmitting} loadingLabel="Creating..." disabled={participantMemberIds.length < 2}>Create tournament</Button>
@@ -296,7 +329,7 @@ export function CreateTournamentModal({
 
 function StepHeader({ currentStep }: { currentStep: number }) {
 	return (
-		<div className="grid gap-3 border-b border-slate-200 pb-4 sm:grid-cols-4">
+		<div className="grid gap-3 border-b border-slate-200 pb-4 sm:grid-cols-3 lg:grid-cols-6">
 			{steps.map((label, index) => {
 				const stepNumber = index + 1;
 				const isDone = stepNumber < currentStep;
@@ -333,48 +366,106 @@ function GameCard({ title, description, selected, icon, onClick }: { title: stri
 	);
 }
 
-function PoolSettings({
+function TournamentStructureStep({ structure, setStructure }: { structure: TournamentStructure; setStructure: (value: TournamentStructure) => void }) {
+	return (
+		<div className="grid gap-5">
+			<div>
+				<h3 className="text-lg font-bold text-ink">Tournament structure</h3>
+				<p className="mt-1 text-sm text-slate-600">Choose how the tournament will be played.</p>
+			</div>
+			<div className="grid gap-3">
+				<RadioPanel checked={structure === 'LeagueAndKnockout'} title="League + knockout" description="Everyone plays in a league. Top players progress to a knockout bracket." onClick={() => setStructure('LeagueAndKnockout')} />
+				<RadioPanel checked={structure === 'KnockoutOnly'} title="Knockout only" description="Single elimination bracket. Lose once and you're out." onClick={() => setStructure('KnockoutOnly')} />
+			</div>
+		</div>
+	);
+}
+
+function MatchFormatStep({
+	gameChoice,
+	dartsMode,
+	setDartsMode,
 	poolMatchFormat,
 	setPoolMatchFormat,
 	poolFrames,
-	setPoolFrames,
+	setPoolFrames
+}: {
+	gameChoice: GameChoice;
+	dartsMode: DartsMode;
+	setDartsMode: (value: DartsMode) => void;
+	poolMatchFormat: PoolMatchFormat;
+	setPoolMatchFormat: (value: PoolMatchFormat) => void;
+	poolFrames: string;
+	setPoolFrames: (value: string) => void;
+}) {
+	return (
+		<div className="grid gap-5">
+			<div>
+				<h3 className="text-lg font-bold text-ink">Match format</h3>
+				<p className="mt-1 text-sm text-slate-600">Choose how matches are played and how many {gameChoice === 'Pool' ? 'frames' : 'legs'} are required.</p>
+			</div>
+			{gameChoice === 'Darts' ? (
+				<div className="grid gap-2">
+					<p className="text-sm font-semibold text-slate-700">Game type</p>
+					<RadioPanel checked={dartsMode === 'Darts301'} title="301" description="Classic 301." onClick={() => setDartsMode('Darts301')} />
+					<RadioPanel checked={dartsMode === 'Darts501'} title="501" description="Classic 501." onClick={() => setDartsMode('Darts501')} />
+					<RadioPanel checked={dartsMode === 'DartsHighestScore'} title="Highest score" description="Most points each round. Lowest scorers are eliminated." onClick={() => setDartsMode('DartsHighestScore')} />
+				</div>
+			) : null}
+			{dartsMode === 'DartsHighestScore' && gameChoice === 'Darts' ? null : (
+				<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem]">
+					<div className="grid gap-2">
+						<RadioPanel checked={poolMatchFormat === 'FirstToFrames'} title={`First to X ${gameChoice === 'Pool' ? 'frames' : 'legs'}`} description={`First player to win X ${gameChoice === 'Pool' ? 'frames' : 'legs'} wins the match.`} onClick={() => setPoolMatchFormat('FirstToFrames')} />
+						<RadioPanel checked={poolMatchFormat === 'BestOfFrames'} title={`Best of X ${gameChoice === 'Pool' ? 'frames' : 'legs'}`} description={`Player with most ${gameChoice === 'Pool' ? 'frames' : 'legs'} after X wins.`} onClick={() => setPoolMatchFormat('BestOfFrames')} />
+					</div>
+					<Field label={gameChoice === 'Pool' ? 'Frames' : 'Legs'}>
+						<TextInput type="number" min="1" value={poolFrames} onChange={(event) => setPoolFrames(event.target.value)} />
+					</Field>
+				</div>
+			)}
+		</div>
+	);
+}
+
+function PoolSettings({
+	breakRule,
+	setBreakRule,
 	poolRules,
 	togglePoolRule,
 	requireCallShot,
 	setRequireCallShot,
 	allowRerack,
-	setAllowRerack
+	setAllowRerack,
+	pushOutAfterFouls,
+	setPushOutAfterFouls
 }: {
-	poolMatchFormat: PoolMatchFormat;
-	setPoolMatchFormat: (value: PoolMatchFormat) => void;
-	poolFrames: string;
-	setPoolFrames: (value: string) => void;
+	breakRule: PoolBreakRule;
+	setBreakRule: (value: PoolBreakRule) => void;
 	poolRules: string[];
 	togglePoolRule: (rule: string) => void;
 	requireCallShot: boolean;
 	setRequireCallShot: (value: boolean) => void;
 	allowRerack: boolean;
 	setAllowRerack: (value: boolean) => void;
+	pushOutAfterFouls: boolean;
+	setPushOutAfterFouls: (value: boolean) => void;
 }) {
 	return (
 		<div className="grid gap-5">
 			<SettingsTitle icon={<PoolIcon small />} title="Pool tournament settings" />
-			<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_10rem]">
-				<div className="grid gap-2">
-					<p className="text-sm font-semibold text-slate-700">Match format</p>
-					<RadioPanel checked={poolMatchFormat === 'FirstToFrames'} title="First to X frames" description="First player to win X frames wins the match" onClick={() => setPoolMatchFormat('FirstToFrames')} />
-					<RadioPanel checked={poolMatchFormat === 'BestOfFrames'} title="Best of X frames" description="Player with most frames after X wins" onClick={() => setPoolMatchFormat('BestOfFrames')} />
-				</div>
-				<Field label={poolMatchFormat === 'FirstToFrames' ? 'Frames to win' : 'Frames (X)'}>
-					<TextInput type="number" min="1" value={poolFrames} onChange={(event) => setPoolFrames(event.target.value)} />
-				</Field>
-			</div>
 			<div className="grid gap-4 sm:grid-cols-2">
+				<div className="grid gap-2">
+					<p className="text-sm font-semibold text-slate-700">Break rules</p>
+					<RadioPanel checked={breakRule === 'NormalBreak'} title="Normal break" description="Standard break rules apply." onClick={() => setBreakRule('NormalBreak')} />
+					<RadioPanel checked={breakRule === 'WinnerBreak'} title="Winner break" description="Winner of previous frame breaks." onClick={() => setBreakRule('WinnerBreak')} />
+					<RadioPanel checked={breakRule === 'AlternateBreak'} title="Alternate break" description="Players alternate breaks." onClick={() => setBreakRule('AlternateBreak')} />
+				</div>
 				<CheckboxGroup title="Table rules optional" items={['8-ball', '9-ball', 'Other / Custom']} selected={poolRules} onToggle={togglePoolRule} />
 				<div className="grid content-start gap-2">
 					<p className="text-sm font-semibold text-slate-700">Additional rules optional</p>
 					<Checkbox checked={requireCallShot} onChange={setRequireCallShot} label="Require call shot" />
 					<Checkbox checked={allowRerack} onChange={setAllowRerack} label="Allow re-rack" />
+					<Checkbox checked={pushOutAfterFouls} onChange={setPushOutAfterFouls} label="Push out after fouls" />
 				</div>
 			</div>
 		</div>
@@ -383,7 +474,6 @@ function PoolSettings({
 
 function DartsSettings({
 	dartsMode,
-	setDartsMode,
 	doubleIn,
 	setDoubleIn,
 	doubleOut,
@@ -396,7 +486,6 @@ function DartsSettings({
 	setMinimumPlayers
 }: {
 	dartsMode: DartsMode;
-	setDartsMode: (value: DartsMode) => void;
 	doubleIn: boolean;
 	setDoubleIn: (value: boolean) => void;
 	doubleOut: boolean;
@@ -411,12 +500,6 @@ function DartsSettings({
 	return (
 		<div className="grid gap-5">
 			<SettingsTitle icon={<Target size={22} strokeWidth={1.7} />} title="Darts tournament settings" />
-			<div className="grid gap-2">
-				<p className="text-sm font-semibold text-slate-700">Choose game type</p>
-				<RadioPanel checked={dartsMode === 'Darts301'} title="301" description="Classic 301. Start on 301, must finish on a double." onClick={() => setDartsMode('Darts301')} />
-				<RadioPanel checked={dartsMode === 'Darts501'} title="501" description="Classic 501. Start on 501, must finish on a double." onClick={() => setDartsMode('Darts501')} />
-				<RadioPanel checked={dartsMode === 'DartsHighestScore'} title="Highest score" description="Most points each round. Lowest scorers are eliminated each round." onClick={() => setDartsMode('DartsHighestScore')} />
-			</div>
 			{dartsMode === 'DartsHighestScore' ? (
 				<div className="grid gap-4 sm:grid-cols-3">
 					<Field label="Players eliminated each round">
@@ -532,6 +615,20 @@ function formatDartsMode(mode: DartsMode) {
 	}
 
 	return 'Darts highest score';
+}
+
+function formatStructure(structure: TournamentStructure) {
+	return structure === 'LeagueAndKnockout' ? 'League + knockout' : 'Knockout only';
+}
+
+function formatMatchRule(format: PoolMatchFormat, amount: string, gameChoice: GameChoice) {
+	const unit = gameChoice === 'Pool' ? 'frames' : 'legs';
+	return `${format === 'FirstToFrames' ? 'First to' : 'Best of'} ${amount || '0'} ${unit}`;
+}
+
+function parseTimeLimit(value: string) {
+	const match = value.match(/^(\d+)/);
+	return match ? Number(match[1]) : null;
 }
 
 function formatSignedPoints(points: number) {

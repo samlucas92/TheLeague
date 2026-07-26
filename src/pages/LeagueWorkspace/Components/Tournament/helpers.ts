@@ -80,21 +80,37 @@ export function isDartsTournament(tournament: Tournament) {
 }
 
 export function matchFormatLabel(tournament: Tournament) {
-	return isDartsTournament(tournament) ? 'Best of 7 legs' : 'Best of 7 frames';
+	const unit = isDartsTournament(tournament) ? 'legs' : 'frames';
+	const prefix = tournament.matchRule === 'BestOf' ? 'Best of' : 'First to';
+	return `${prefix} ${tournament.framesOrLegs || 5} ${unit}`;
 }
 
 export function gameRulesSummary(tournament: Tournament) {
 	if (tournament.gameType === 'Darts301') {
-		return ['301', 'Double in', 'Double out', 'Best of 7 legs'];
+		return ['301', tournament.doubleInRequired ? 'Double in' : 'No double in', tournament.doubleOutRequired ? 'Double out' : 'No double out', matchFormatLabel(tournament)];
 	}
 
 	if (tournament.gameType === 'Darts501') {
-		return ['501', 'Double in', 'Double out', 'Best of 7 legs'];
+		return ['501', tournament.doubleInRequired ? 'Double in' : 'No double in', tournament.doubleOutRequired ? 'Double out' : 'No double out', matchFormatLabel(tournament)];
 	}
 
 	if (tournament.gameType === 'DartsHighestScore') {
-		return ['Highest score', `Eliminate ${tournament.eliminatePerRound} each round`];
+		return ['Highest score', `Eliminate ${tournament.eliminatePerRound} each round`, `Minimum ${tournament.minimumPlayers || 2} players`];
 	}
 
-	return ['Pool (1 vs 1)', 'Best of 7 frames'];
+	return ['Pool (1 vs 1)', matchFormatLabel(tournament), ...(tournament.poolRules?.length ? tournament.poolRules : ['8-ball'])];
+}
+
+export function structureLabel(tournament: Tournament) {
+	return tournament.structure === 'LeagueAndKnockout' ? 'League + knockout' : 'Knockout only';
+}
+
+export function breakRuleLabel(tournament: Tournament) {
+	if (tournament.breakRule === 'WinnerBreak') {
+		return 'Winner break';
+	}
+	if (tournament.breakRule === 'AlternateBreak') {
+		return 'Alternate break';
+	}
+	return 'Normal break';
 }
