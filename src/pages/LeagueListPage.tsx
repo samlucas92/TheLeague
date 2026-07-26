@@ -48,7 +48,14 @@ export function LeagueListPage() {
 					</Link>
 				))}
 				{leagues.length === 0 && !error && !isLoading ? (
-					<div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No leagues yet.</div>
+					<div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
+						<h2 className="text-lg font-bold text-ink">Start your first league</h2>
+						<p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">Create a league for your group, or join one with a code someone has shared with you.</p>
+						<div className="mt-5 flex flex-wrap justify-center gap-2">
+							<Link to="/leagues/create"><Button icon={<Plus size={16} />}>Create league</Button></Link>
+							<Link to="/join"><Button variant="secondary" icon={<Search size={16} />}>Join with code</Button></Link>
+						</div>
+					</div>
 				) : null}
 			</div>
 		</div>

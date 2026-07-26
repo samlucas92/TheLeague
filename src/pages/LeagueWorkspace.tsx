@@ -150,12 +150,27 @@ export function OverviewPage() {
 	return (
 		<div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 lg:col-span-2">{error}</p> : null}
+			{!isLoading && leaderboard.length === 0 && feed.length === 0 ? (
+				<section className="rounded-lg border border-slate-200 bg-white p-5 lg:col-span-2">
+					<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+						<div>
+							<h2 className="text-lg font-bold text-ink">Set up the first score</h2>
+							<p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">Invite people with the join code, create a side challenge, or add an opening points entry to get the league moving.</p>
+						</div>
+						<div className="flex flex-wrap gap-2 lg:justify-end">
+							<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
+							<Button type="button" variant="secondary" icon={<Send size={16} />} onClick={openCreateChallengeModal}>Create challenge</Button>
+							<Link to="members"><Button type="button" variant="secondary">View members</Button></Link>
+						</div>
+					</div>
+				</section>
+			) : null}
 			<section className="rounded-lg border border-slate-200 bg-white p-5">
 				<h2 className="text-lg font-bold text-ink">Top participants</h2>
 				<div className="mt-4 grid gap-2">
 					{isLoading ? <p className="text-sm text-slate-600">Loading leaderboard...</p> : null}
 					{leaderboard.map((row) => <LeaderboardLine key={row.leagueMemberId} row={row} />)}
-					{leaderboard.length === 0 && !isLoading ? <p className="text-sm text-slate-600">No approved points yet.</p> : null}
+					{leaderboard.length === 0 && !isLoading ? <p className="rounded-md bg-slate-50 px-3 py-3 text-sm text-slate-600">No approved points yet. The first approved score will appear here.</p> : null}
 				</div>
 				<div className="mt-5 flex gap-2">
 					<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
@@ -168,12 +183,16 @@ export function OverviewPage() {
 				<div className="mt-4 grid gap-3">
 					{isLoading ? <p className="text-sm text-slate-600">Loading points...</p> : null}
 					{feed.map((item) => <FeedLine key={item.allocationId} item={item} />)}
-					{feed.length === 0 && !isLoading ? <p className="text-sm text-slate-600">The points feed is waiting for its first approval.</p> : null}
+					{feed.length === 0 && !isLoading ? <p className="rounded-md bg-slate-50 px-3 py-3 text-sm text-slate-600">The points feed is waiting for its first score.</p> : null}
 				</div>
 			</section>
 			<section className="rounded-lg border border-slate-200 bg-white p-5 lg:col-span-2">
 				<h2 className="text-lg font-bold text-ink">Members</h2>
 				<p className="mt-1 text-sm text-slate-600">{members.length} members in {league.name}.</p>
+				<div className="mt-4 flex flex-wrap gap-2">
+					<Link to="members"><Button type="button" variant="secondary">Manage members</Button></Link>
+					<Button type="button" variant="secondary" icon={<Share2 size={16} />} onClick={() => navigator.clipboard?.writeText(`${window.location.origin}/view/${league.joinCode}`)}>Copy public link</Button>
+				</div>
 			</section>
 		</div>
 	);
@@ -214,7 +233,12 @@ export function LeaderboardPage() {
 					</tbody>
 				</table>
 				{isLoading ? <div className="border-t border-slate-100 p-8 text-center text-sm text-slate-600">Loading leaderboard...</div> : null}
-				{rows.length === 0 && !isLoading ? <div className="border-t border-slate-100 p-8 text-center text-sm text-slate-600">No approved points yet.</div> : null}
+				{rows.length === 0 && !isLoading ? (
+					<div className="border-t border-slate-100 p-8 text-center">
+						<h2 className="text-lg font-bold text-ink">No leaderboard yet</h2>
+						<p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">Approved points will rank members here. Add points or approve submissions to build the board.</p>
+					</div>
+				) : null}
 			</section>
 		</div>
 	);
@@ -328,8 +352,16 @@ export function PointsFeedPage() {
 						) : undefined}
 					/>
 				))}
-				{items.length === 0 && !isLoading ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No official points yet.</div> : null}
-				{items.length > 0 && filteredItems.length === 0 && !isLoading ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No points match those filters.</div> : null}
+				{items.length === 0 && !isLoading ? (
+					<EmptyState
+						title="No official points yet"
+						description="Add a manual points entry or approve a request. Every confirmed change will appear here."
+						actions={<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>}
+					/>
+				) : null}
+				{items.length > 0 && filteredItems.length === 0 && !isLoading ? (
+					<EmptyState title="No points match those filters" description="Clear or change the filters to see more entries." />
+				) : null}
 				{filteredItems.length > pageSize ? (
 					<div className="flex flex-wrap items-center justify-between gap-3">
 						<Button variant="secondary" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</Button>
@@ -507,7 +539,13 @@ export function ChallengesPage() {
 						</article>
 					);
 				})}
-				{challenges.length === 0 && !isLoading ? <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">No challenges yet.</div> : null}
+				{challenges.length === 0 && !isLoading ? (
+					<EmptyState
+						title="No challenges yet"
+						description="Create a side challenge for one or more members. Targets can accept or reject, then completion can be marked later."
+						actions={<Button type="button" icon={<Plus size={16} />} onClick={openCreateChallengeModal}>Create challenge</Button>}
+					/>
+				) : null}
 				{challenges.length > pageSize ? (
 					<div className="flex items-center justify-between">
 						<Button variant="secondary" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</Button>
@@ -790,7 +828,7 @@ export function AdminPage() {
 							</div>
 						</div>
 					))}
-					{pending.length === 0 ? <p className="text-sm text-slate-600">No pending submissions.</p> : null}
+					{pending.length === 0 ? <p className="rounded-md bg-slate-50 px-3 py-3 text-sm text-slate-600">No pending submissions. Point requests that need review will appear here.</p> : null}
 					</div>
 				</section>
 				<section className="rounded-lg border border-slate-200 bg-white p-5">
@@ -815,7 +853,7 @@ export function AdminPage() {
 								<p className="text-xs text-slate-500">{new Date(entry.createdAt).toLocaleString()}</p>
 							</article>
 						))}
-						{audit.length === 0 ? <p className="text-sm text-slate-600">No activity recorded yet.</p> : null}
+						{audit.length === 0 ? <p className="rounded-md bg-slate-50 px-3 py-3 text-sm text-slate-600">No activity recorded yet. Settings changes, scoring actions, and member updates will appear here.</p> : null}
 					</div>
 				</section>
 				{message ? <p className="text-sm font-semibold text-emerald-700">{message}</p> : null}
@@ -943,6 +981,13 @@ export function MembersPage() {
 					<h2 className="text-lg font-bold text-ink">Members</h2>
 					<p className="text-sm text-slate-600">{members.length} people in this league.</p>
 				</div>
+				{members.length <= 1 ? (
+					<EmptyState
+						title="Invite the group"
+						description="Share the join code with registered players, or add offline members for people who do not want to sign up yet."
+						actions={canManageMembers ? <Button type="button" variant="secondary" icon={<Share2 size={16} />} onClick={() => navigator.clipboard?.writeText(league.joinCode)}>Copy join code</Button> : undefined}
+					/>
+				) : null}
 				{members.map((member) => (
 					<div key={member.id} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm xl:grid-cols-[minmax(0,1fr)_12rem_10rem_auto] xl:items-center">
 						<div className="min-w-0">
@@ -1645,6 +1690,16 @@ function getChallengeOutcomes(challenge: Challenge) {
 		awardedByName: null,
 		points: null
 	}));
+}
+
+function EmptyState({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
+	return (
+		<div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
+			<h2 className="text-lg font-bold text-ink">{title}</h2>
+			<p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">{description}</p>
+			{actions ? <div className="mt-5 flex flex-wrap justify-center gap-2">{actions}</div> : null}
+		</div>
+	);
 }
 
 function LeaderboardLine({ row }: { row: LeaderboardRow }) {
