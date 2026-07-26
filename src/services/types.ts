@@ -3,6 +3,7 @@ export type User = {
 	name: string;
 	emailAddress: string;
 	isEmailVerified: boolean;
+	isSiteAdmin: boolean;
 };
 
 export type LoginResponse = {
@@ -137,4 +138,20 @@ export type LeagueAuditItem = {
 	entityId?: string | null;
 	summary: string;
 	createdAt: string;
+};
+
+export type EmailAuditItem = {
+	id: string;
+	provider: string;
+	status: string;
+	toEmailAddress: string;
+	toName?: string | null;
+	subject: string;
+	attempts: number;
+	providerMessageId?: string | null;
+	failureReason?: string | null;
+	createdAt: string;
+	updatedAt: string;
+	sentAt?: string | null;
+	nextAttemptAt?: string | null;
 };
