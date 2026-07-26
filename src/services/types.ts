@@ -84,7 +84,7 @@ export type ChallengeOutcome = {
 export type Tournament = {
 	id: string;
 	name: string;
-	gameType: 'Pool' | 'DartsHighestScore';
+	gameType: 'Pool' | 'Darts301' | 'Darts501' | 'DartsHighestScore';
 	format: 'SingleEliminationBracket' | 'RoundElimination';
 	status: 'Draft' | 'Active' | 'Completed' | 'Cancelled';
 	challengeId?: string | null;

@@ -3,6 +3,7 @@ import { Clock, Trophy } from 'lucide-react';
 import { Button } from '../../../../components/Button';
 import { StatusBadge } from '../../../../components/StatusBadge';
 import type { Tournament, TournamentMatch, TournamentParticipant } from '../../../../services/types';
+import { matchFormatLabel } from './helpers';
 import { Avatar, Meta } from './Shared';
 
 export function SideCard({ title, children }: { title: string; children: ReactNode }) {
@@ -27,7 +28,7 @@ export function NextMatchMini({ match, memberNames }: { match: TournamentMatch; 
 	);
 }
 
-export function NextMatchLarge({ match, memberNames }: { match: TournamentMatch; memberNames: Map<string, string> }) {
+export function NextMatchLarge({ match, memberNames, tournament }: { match: TournamentMatch; memberNames: Map<string, string>; tournament?: Tournament }) {
 	const playerOne = memberNames.get(match.playerOneMemberId ?? '') ?? 'TBD';
 	const playerTwo = memberNames.get(match.playerTwoMemberId ?? '') ?? 'TBD';
 	return (
@@ -39,7 +40,7 @@ export function NextMatchLarge({ match, memberNames }: { match: TournamentMatch;
 			</div>
 			<div className="grid gap-2 text-left text-sm text-slate-600">
 				<Meta icon={<Clock size={15} />} label="Today, 18:30" />
-				<Meta icon={<Trophy size={15} />} label="Best of 7 frames" />
+				<Meta icon={<Trophy size={15} />} label={tournament ? matchFormatLabel(tournament) : 'Best of 7'} />
 			</div>
 			<Button type="button" variant="secondary">View match</Button>
 		</div>

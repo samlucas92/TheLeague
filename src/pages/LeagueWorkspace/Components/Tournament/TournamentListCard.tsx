@@ -2,7 +2,7 @@ import { Calendar, ChevronRight, MoreVertical, Target, Trash2, Trophy, Users } f
 import { Button } from '../../../../components/Button';
 import { StatusBadge } from '../../../../components/StatusBadge';
 import type { Tournament } from '../../../../services/types';
-import { formatDate, formatGameType, getNextMatch, getStatusTone } from './helpers';
+import { formatDate, formatGameType, gameRulesSummary, getNextMatch, getStatusTone, matchFormatLabel } from './helpers';
 import { GameArtwork, Meta } from './Shared';
 import { NextMatchMini } from './TournamentSidebar';
 
@@ -18,7 +18,7 @@ export function TournamentListCard({ tournament, canManage, memberNames, onView,
 				<h3 className="mt-2 text-xl font-bold text-ink">{tournament.name}</h3>
 				<div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600">
 					<Meta icon={<Target size={15} />} label={formatGameType(tournament)} />
-					<Meta icon={<Trophy size={15} />} label={tournament.format === 'SingleEliminationBracket' ? 'Knockout bracket' : `Eliminate ${tournament.eliminatePerRound} each round`} />
+					<Meta icon={<Trophy size={15} />} label={tournament.format === 'SingleEliminationBracket' ? matchFormatLabel(tournament) : gameRulesSummary(tournament).at(-1) ?? 'Round elimination'} />
 					<Meta icon={<Users size={15} />} label={`${tournament.participantCount} players`} />
 					<Meta icon={<Calendar size={15} />} label={tournament.completedAt ? `Completed ${formatDate(tournament.completedAt)}` : `Started ${formatDate(tournament.createdAt)}`} />
 				</div>

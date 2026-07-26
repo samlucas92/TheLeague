@@ -12,7 +12,7 @@ export function filterTournaments(tournaments: Tournament[], filter: TournamentF
 		const gameMatches =
 			gameFilter === 'All games' ||
 			(gameFilter === 'Pool' && tournament.gameType === 'Pool') ||
-			(gameFilter === 'Darts' && tournament.gameType === 'DartsHighestScore');
+			(gameFilter === 'Darts' && isDartsTournament(tournament));
 		return statusMatches && gameMatches;
 	});
 }
@@ -43,7 +43,19 @@ export function roundTitle(roundNumber: number, roundCount: number) {
 }
 
 export function formatGameType(tournament: Tournament) {
-	return tournament.gameType === 'Pool' ? 'Pool (1 vs 1)' : 'Darts (Highest score)';
+	if (tournament.gameType === 'Darts301') {
+		return 'Darts (301)';
+	}
+
+	if (tournament.gameType === 'Darts501') {
+		return 'Darts (501)';
+	}
+
+	if (tournament.gameType === 'DartsHighestScore') {
+		return 'Darts (Highest score)';
+	}
+
+	return 'Pool (1 vs 1)';
 }
 
 export function getStatusTone(status: Tournament['status']) {
@@ -63,3 +75,26 @@ export function formatDate(date: string) {
 	return new Date(date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+export function isDartsTournament(tournament: Tournament) {
+	return tournament.gameType === 'Darts301' || tournament.gameType === 'Darts501' || tournament.gameType === 'DartsHighestScore';
+}
+
+export function matchFormatLabel(tournament: Tournament) {
+	return isDartsTournament(tournament) ? 'Best of 7 legs' : 'Best of 7 frames';
+}
+
+export function gameRulesSummary(tournament: Tournament) {
+	if (tournament.gameType === 'Darts301') {
+		return ['301', 'Double in', 'Double out', 'Best of 7 legs'];
+	}
+
+	if (tournament.gameType === 'Darts501') {
+		return ['501', 'Double in', 'Double out', 'Best of 7 legs'];
+	}
+
+	if (tournament.gameType === 'DartsHighestScore') {
+		return ['Highest score', `Eliminate ${tournament.eliminatePerRound} each round`];
+	}
+
+	return ['Pool (1 vs 1)', 'Best of 7 frames'];
+}

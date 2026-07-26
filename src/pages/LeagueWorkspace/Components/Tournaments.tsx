@@ -113,7 +113,7 @@ export function CreateTournamentModal({
 			const isDartsHighestScore = gameChoice === 'Darts' && dartsMode === 'DartsHighestScore';
 			await leagueService.createTournament(league.id, {
 				name,
-				gameType: isDartsHighestScore ? 'DartsHighestScore' : 'Pool',
+				gameType: gameChoice === 'Pool' ? 'Pool' : dartsMode,
 				format: isDartsHighestScore ? 'RoundElimination' : 'SingleEliminationBracket',
 				participantMemberIds,
 				winnerPoints: Number(winnerPoints),
