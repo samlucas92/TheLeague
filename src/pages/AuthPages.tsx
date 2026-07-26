@@ -233,7 +233,7 @@ export function RegisterPage() {
 				<label className="flex items-start gap-3 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-700">
 					<input className="mt-1" type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} required />
 					<span>
-						I agree to the <Link className="font-semibold text-ink underline" to="/terms" target="_blank" rel="noreferrer">Terms of Service</Link>.
+						I agree to the <Link className="font-semibold text-ink underline" to="/terms" target="_blank" rel="noreferrer">Terms of Service</Link> and acknowledge the <Link className="font-semibold text-ink underline" to="/privacy" target="_blank" rel="noreferrer">Privacy Policy</Link>.
 					</span>
 				</label>
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
