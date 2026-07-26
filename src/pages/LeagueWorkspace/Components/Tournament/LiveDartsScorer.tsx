@@ -22,10 +22,26 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	const [playerOneLegs, setPlayerOneLegs] = useState(match.playerOneScore ?? 0);
 	const [playerTwoLegs, setPlayerTwoLegs] = useState(match.playerTwoScore ?? 0);
 	const [visitScore, setVisitScore] = useState('');
+	const [manualDartCount, setManualDartCount] = useState('3');
 	const [pendingDarts, setPendingDarts] = useState<PendingDart[]>([]);
 	const [selectedMultiplier, setSelectedMultiplier] = useState<DartMultiplier>('Single');
 	const [manualCheckoutDouble, setManualCheckoutDouble] = useState(false);
-	const [turnHistory, setTurnHistory] = useState<Array<{ activePlayerId: string; playerOneRemaining: number; playerTwoRemaining: number; playerOneLegs: number; playerTwoLegs: number; pendingDarts: PendingDart[] }>>([]);
+	const [playerOneLastScore, setPlayerOneLastScore] = useState(0);
+	const [playerTwoLastScore, setPlayerTwoLastScore] = useState(0);
+	const [playerOneDartsThisLeg, setPlayerOneDartsThisLeg] = useState(0);
+	const [playerTwoDartsThisLeg, setPlayerTwoDartsThisLeg] = useState(0);
+	const [turnHistory, setTurnHistory] = useState<Array<{
+		activePlayerId: string;
+		playerOneRemaining: number;
+		playerTwoRemaining: number;
+		playerOneLegs: number;
+		playerTwoLegs: number;
+		playerOneLastScore: number;
+		playerTwoLastScore: number;
+		playerOneDartsThisLeg: number;
+		playerTwoDartsThisLeg: number;
+		pendingDarts: PendingDart[];
+	}>>([]);
 	const [error, setError] = useState('');
 	const [isCompleting, setIsCompleting] = useState(false);
 	const activePlayerName = activePlayerId === playerTwoId ? playerTwo : activePlayerId === playerOneId ? playerOne : 'Choose who throws first';
@@ -50,21 +66,36 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 
 		const currentRemaining = activePlayerId === playerOneId ? playerOneRemaining : playerTwoRemaining;
 		const nextRemaining = currentRemaining - score;
+		const dartsUsed = Math.max(1, dartsForTurn.length || Number(manualDartCount) || 3);
+		const historyEntry = {
+			activePlayerId,
+			playerOneRemaining,
+			playerTwoRemaining,
+			playerOneLegs,
+			playerTwoLegs,
+			playerOneLastScore,
+			playerTwoLastScore,
+			playerOneDartsThisLeg,
+			playerTwoDartsThisLeg,
+			pendingDarts: dartsForTurn
+		};
 		if (score > currentRemaining || nextRemaining === 1 || (nextRemaining === 0 && tournament.doubleOutRequired && !finishedOnDouble)) {
-			setTurnHistory((history) => [...history, { activePlayerId, playerOneRemaining, playerTwoRemaining, playerOneLegs, playerTwoLegs, pendingDarts: dartsForTurn }]);
+			setTurnHistory((history) => [...history, historyEntry]);
 			setError(nextRemaining === 0 ? 'Bust. Checkout must finish on a double.' : 'Bust.');
 			setVisitScore('');
 			setManualCheckoutDouble(false);
 			setPendingDarts([]);
+			updateLastScoreAndDarts(score, dartsUsed, false);
 			changeTurn();
 			return;
 		}
 
-		setTurnHistory((history) => [...history, { activePlayerId, playerOneRemaining, playerTwoRemaining, playerOneLegs, playerTwoLegs, pendingDarts: dartsForTurn }]);
+		setTurnHistory((history) => [...history, historyEntry]);
 		setError('');
 		setVisitScore('');
 		setManualCheckoutDouble(false);
 		setPendingDarts([]);
+		updateLastScoreAndDarts(score, dartsUsed, nextRemaining === 0);
 
 		if (nextRemaining === 0) {
 			const nextPlayerOneLegs = playerOneLegs + (activePlayerId === playerOneId ? 1 : 0);
@@ -73,6 +104,8 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 			setPlayerTwoLegs(nextPlayerTwoLegs);
 			setPlayerOneRemaining(startScore);
 			setPlayerTwoRemaining(startScore);
+			setPlayerOneDartsThisLeg(0);
+			setPlayerTwoDartsThisLeg(0);
 			changeTurn();
 			return;
 		}
@@ -83,6 +116,17 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 			setPlayerTwoRemaining(nextRemaining);
 		}
 		changeTurn();
+	}
+
+	function updateLastScoreAndDarts(score: number, dartsUsed: number, resetLegDarts: boolean) {
+		if (activePlayerId === playerOneId) {
+			setPlayerOneLastScore(score);
+			setPlayerOneDartsThisLeg((current) => resetLegDarts ? 0 : current + dartsUsed);
+			return;
+		}
+
+		setPlayerTwoLastScore(score);
+		setPlayerTwoDartsThisLeg((current) => resetLegDarts ? 0 : current + dartsUsed);
 	}
 
 	function submitVisit(event: FormEvent) {
@@ -101,7 +145,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	}
 
 	function recordDart(dart: PendingDart) {
-		if (!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2) {
+		if (!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3) {
 			return;
 		}
 
@@ -109,7 +153,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 		const turnScore = nextPendingDarts.reduce((total, item) => total + item.score, 0);
 		const currentRemaining = activePlayerId === playerOneId ? playerOneRemaining : playerTwoRemaining;
 		const nextRemaining = currentRemaining - turnScore;
-		if (nextRemaining === 0 || nextPendingDarts.length === 2 || nextRemaining < 1) {
+		if (nextRemaining === 0 || nextPendingDarts.length === 3 || nextRemaining < 1) {
 			recordVisit(turnScore, dart.isDouble, nextPendingDarts);
 			return;
 		}
@@ -119,6 +163,12 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	}
 
 	function undoLastTurn() {
+		if (pendingDarts.length > 0) {
+			setPendingDarts((darts) => darts.slice(0, -1));
+			setError('');
+			return;
+		}
+
 		const previous = turnHistory.at(-1);
 		if (!previous) {
 			return;
@@ -129,7 +179,11 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 		setPlayerTwoRemaining(previous.playerTwoRemaining);
 		setPlayerOneLegs(previous.playerOneLegs);
 		setPlayerTwoLegs(previous.playerTwoLegs);
-		setPendingDarts(previous.pendingDarts);
+		setPlayerOneLastScore(previous.playerOneLastScore);
+		setPlayerTwoLastScore(previous.playerTwoLastScore);
+		setPlayerOneDartsThisLeg(previous.playerOneDartsThisLeg);
+		setPlayerTwoDartsThisLeg(previous.playerTwoDartsThisLeg);
+		setPendingDarts(previous.pendingDarts.slice(0, -1));
 		setTurnHistory((history) => history.slice(0, -1));
 		setError('');
 	}
@@ -153,9 +207,9 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 
 	return (
 		<div className="grid gap-4 border-t border-slate-100 pt-4">
-			<div className="grid gap-4 lg:grid-cols-[1fr_18rem_1fr]">
-				<DartsPlayerPanel name={playerOne} score={startScore} remaining={playerOneRemaining} active={gameStarted && activePlayerId === playerOneId} legs={playerOneLegs} />
-				<div className="rounded-lg border border-slate-200 p-4">
+			<div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_18rem_1fr] lg:gap-4">
+				<DartsPlayerPanel name={playerOne} score={startScore} remaining={playerOneRemaining} active={gameStarted && activePlayerId === playerOneId} legs={playerOneLegs} lastScore={playerOneLastScore} dartsThisLeg={playerOneDartsThisLeg} />
+				<div className="order-3 col-span-2 rounded-lg border border-slate-200 p-4 lg:order-none lg:col-span-1">
 					<p className="text-xs font-bold uppercase text-slate-500">Legs</p>
 					<p className="mt-2 text-4xl font-bold text-ink">{playerOneLegs} - {playerTwoLegs}</p>
 					<p className="mt-1 text-sm font-semibold text-slate-500">First to {targetLegs}</p>
@@ -164,7 +218,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 						<p>{tournament.doubleOutRequired ? 'Double out required' : 'Double out not required'}</p>
 					</div>
 				</div>
-				<DartsPlayerPanel name={playerTwo} score={startScore} remaining={playerTwoRemaining} active={gameStarted && activePlayerId === playerTwoId} legs={playerTwoLegs} tone="green" />
+				<DartsPlayerPanel name={playerTwo} score={startScore} remaining={playerTwoRemaining} active={gameStarted && activePlayerId === playerTwoId} legs={playerTwoLegs} lastScore={playerTwoLastScore} dartsThisLeg={playerTwoDartsThisLeg} tone="green" />
 			</div>
 			{gameStarted || match.status === 'Completed' ? null : (
 				<div className="rounded-lg border border-slate-200 p-4 text-left">
@@ -198,14 +252,25 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 								Manual score finished on a double
 							</label>
 						) : null}
+						<div className="grid gap-2 sm:grid-cols-[1fr_10rem]">
+							<p className="text-xs font-semibold leading-5 text-slate-500">Manual entry records a whole turn. Use the dart count to keep the leg total accurate.</p>
+							<label className="grid gap-1 text-sm font-semibold text-slate-700">
+								Darts used
+								<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" value={manualDartCount} onChange={(event) => setManualDartCount(event.target.value)} disabled={!canManage || !gameStarted || matchComplete}>
+									<option value="1">1 dart</option>
+									<option value="2">2 darts</option>
+									<option value="3">3 darts</option>
+								</select>
+							</label>
+						</div>
 						<div className="grid gap-3 rounded-md bg-slate-50 p-3">
 							<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
 								<div className="flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-500">
 									<span>Darts this turn</span>
 									<span>{pendingDarts.reduce((total, dart) => total + dart.score, 0)} scored</span>
 								</div>
-								<div className="grid grid-cols-2 gap-2">
-									{[0, 1].map((index) => {
+								<div className="grid grid-cols-3 gap-2">
+									{[0, 1, 2].map((index) => {
 										const dart = pendingDarts[index];
 										return (
 											<div key={index} className="rounded-md bg-slate-50 px-3 py-2 text-center">
@@ -218,21 +283,21 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 							</div>
 							<div className="grid grid-cols-3 gap-2">
 								{(['Single', 'Double', 'Treble'] as DartMultiplier[]).map((multiplier) => (
-									<button key={multiplier} type="button" className={selectedMultiplier === multiplier ? 'min-h-11 rounded-md bg-ink px-3 py-2 text-sm font-bold text-white' : 'min-h-11 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50'} onClick={() => setSelectedMultiplier(multiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>
+									<button key={multiplier} type="button" className={selectedMultiplier === multiplier ? 'min-h-11 rounded-md bg-ink px-3 py-2 text-sm font-bold text-white' : 'min-h-11 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50'} onClick={() => setSelectedMultiplier(multiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>
 										{multiplier}
 									</button>
 								))}
 							</div>
 							<div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
 								{Array.from({ length: 20 }, (_, index) => index + 1).map((number) => (
-									<button key={number} type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => scoreDart(number, selectedMultiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>
-										{number}
+									<button key={number} type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => scoreDart(number, selectedMultiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>
+										{formatDartButtonLabel(number, selectedMultiplier)}
 									</button>
 								))}
 							</div>
 							<div className="grid grid-cols-2 gap-2">
-								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: '25', score: 25, isDouble: false })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>25</button>
-								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: 'Bull', score: 50, isDouble: true })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 2}>Bull</button>
+								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: '25', score: 25, isDouble: false })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>25</button>
+								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: 'Bull', score: 50, isDouble: true })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>Bull</button>
 							</div>
 						</div>
 					</div>
@@ -256,15 +321,28 @@ function ThrowFirstButton({ name, selected, onClick }: { name: string; selected:
 	);
 }
 
-function DartsPlayerPanel({ name, score, remaining, active, legs, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; legs: number; tone?: 'blue' | 'green' }) {
+function formatDartButtonLabel(number: number, multiplier: DartMultiplier) {
+	if (multiplier === 'Single') {
+		return String(number);
+	}
+
+	const multiplierValue = multiplier === 'Treble' ? 3 : 2;
+	return `${number} (${number * multiplierValue})`;
+}
+
+function DartsPlayerPanel({ name, score, remaining, active, legs, lastScore, dartsThisLeg, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; legs: number; lastScore: number; dartsThisLeg: number; tone?: 'blue' | 'green' }) {
 	return (
-		<div className={active ? 'rounded-lg border border-blue-500 bg-blue-50/30 p-4 text-center' : 'rounded-lg border border-slate-200 p-4 text-center'}>
+		<div className={active ? 'min-w-0 rounded-lg border border-blue-500 bg-blue-50/30 p-3 text-center sm:p-4' : 'min-w-0 rounded-lg border border-slate-200 p-3 text-center sm:p-4'}>
 			<Avatar name={name} large tone={tone === 'green' ? 'green' : 'blue'} />
-			<p className="mt-2 font-bold text-ink">{name}</p>
-			<p className="mt-4 rounded-md border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-600">{score}</p>
-			<p className="mt-4 text-xs font-bold uppercase text-slate-500">Current score</p>
-			<p className="mt-1 text-3xl font-bold text-ink">{remaining}</p>
-			<p className="mt-2 text-xs font-semibold text-slate-500">{legs} legs won</p>
+			<p className="mt-2 truncate text-sm font-bold text-ink sm:text-base">{name}</p>
+			<p className="mt-3 rounded-md border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-600 sm:text-sm">{score}</p>
+			<p className="mt-3 text-xs font-bold uppercase text-slate-500">Current</p>
+			<p className="mt-1 text-3xl font-bold text-ink sm:text-4xl">{remaining}</p>
+			<div className="mt-3 grid gap-1 text-xs font-semibold text-slate-500 sm:grid-cols-3">
+				<span>{legs} legs</span>
+				<span>Last {lastScore}</span>
+				<span>{dartsThisLeg} darts</span>
+			</div>
 		</div>
 	);
 }
