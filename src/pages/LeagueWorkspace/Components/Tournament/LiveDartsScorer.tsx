@@ -241,70 +241,61 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 						<p className="text-2xl font-bold text-ink">{gameStarted ? activeRemaining : '-'}</p>
 					</div>
 				</div>
-				<div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-					<div className="grid gap-3">
-						<Field label="Score this visit">
-							<TextInput className="min-h-16 text-center text-3xl font-bold" type="number" min="0" max="180" value={visitScore} onChange={(event) => setVisitScore(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} placeholder="0" />
-						</Field>
-						{Number(visitScore) === activeRemaining && tournament.doubleOutRequired ? (
-							<label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-								<input type="checkbox" checked={manualCheckoutDouble} onChange={(event) => setManualCheckoutDouble(event.target.checked)} disabled={!canManage || !gameStarted || matchComplete} />
-								Manual score finished on a double
-							</label>
-						) : null}
-						<div className="grid gap-2 sm:grid-cols-[1fr_10rem]">
-							<p className="text-xs font-semibold leading-5 text-slate-500">Manual entry records a whole turn. Use the dart count to keep the leg total accurate.</p>
-							<label className="grid gap-1 text-sm font-semibold text-slate-700">
-								Darts used
-								<select className="min-h-10 rounded-md border border-slate-300 bg-white px-3 text-sm" value={manualDartCount} onChange={(event) => setManualDartCount(event.target.value)} disabled={!canManage || !gameStarted || matchComplete}>
-									<option value="1">1 dart</option>
-									<option value="2">2 darts</option>
-									<option value="3">3 darts</option>
-								</select>
-							</label>
+				<div className="grid gap-3 rounded-md bg-slate-50 p-3">
+					<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
+						<div className="flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-500">
+							<span>Darts this turn</span>
+							<span>{pendingDarts.reduce((total, dart) => total + dart.score, 0)} scored</span>
 						</div>
-						<div className="grid gap-3 rounded-md bg-slate-50 p-3">
-							<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
-								<div className="flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-500">
-									<span>Darts this turn</span>
-									<span>{pendingDarts.reduce((total, dart) => total + dart.score, 0)} scored</span>
-								</div>
-								<div className="grid grid-cols-3 gap-2">
-									{[0, 1, 2].map((index) => {
-										const dart = pendingDarts[index];
-										return (
-											<div key={index} className="rounded-md bg-slate-50 px-3 py-2 text-center">
-												<p className="text-xs font-semibold text-slate-500">Dart {index + 1}</p>
-												<p className="text-lg font-bold text-ink">{dart ? `${dart.label} (${dart.score})` : '-'}</p>
-											</div>
-										);
-									})}
-								</div>
-							</div>
-							<div className="grid grid-cols-3 gap-2">
-								{(['Single', 'Double', 'Treble'] as DartMultiplier[]).map((multiplier) => (
-									<button key={multiplier} type="button" className={selectedMultiplier === multiplier ? 'min-h-11 rounded-md bg-ink px-3 py-2 text-sm font-bold text-white' : 'min-h-11 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50'} onClick={() => setSelectedMultiplier(multiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>
-										{multiplier}
-									</button>
-								))}
-							</div>
-							<div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
-								{Array.from({ length: 20 }, (_, index) => index + 1).map((number) => (
-									<button key={number} type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => scoreDart(number, selectedMultiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>
-										{formatDartButtonLabel(number, selectedMultiplier)}
-									</button>
-								))}
-							</div>
-							<div className="grid grid-cols-2 gap-2">
-								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: '25', score: 25, isDouble: false })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>25</button>
-								<button type="button" className="min-h-12 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: 'Bull', score: 50, isDouble: true })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>Bull</button>
-							</div>
+						<div className="grid grid-cols-3 gap-2">
+							{[0, 1, 2].map((index) => {
+								const dart = pendingDarts[index];
+								return (
+									<div key={index} className="rounded-md bg-slate-50 px-3 py-2 text-center">
+										<p className="text-xs font-semibold text-slate-500">Dart {index + 1}</p>
+										<p className="text-lg font-bold text-ink">{dart ? `${dart.label} (${dart.score})` : '-'}</p>
+									</div>
+								);
+							})}
 						</div>
 					</div>
-					<div className="grid content-start gap-2">
-						<Button type="submit" disabled={!canManage || !gameStarted || matchComplete}>Enter score</Button>
-						<Button type="button" variant="secondary" icon={<RotateCcw size={16} />} onClick={undoLastTurn} disabled={!canManage || turnHistory.length === 0 || match.status === 'Completed'}>Undo last dart</Button>
-						<Button type="button" loading={isCompleting} loadingLabel="Completing..." disabled={!canManage || !matchComplete || match.status === 'Completed'} onClick={completeMatch}>Complete match</Button>
+					<div className="grid gap-3 rounded-full border border-slate-200 bg-white p-2 sm:grid-cols-[1fr_8rem_9rem] sm:items-center">
+						<TextInput className="min-h-12 rounded-full border-0 bg-transparent text-center text-2xl font-bold shadow-none focus:ring-0" type="number" min="0" max="180" value={visitScore} onChange={(event) => setVisitScore(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} placeholder="Manual score" aria-label="Manual score" />
+						<select className="min-h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" value={manualDartCount} onChange={(event) => setManualDartCount(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} aria-label="Darts used">
+							<option value="1">1 dart</option>
+							<option value="2">2 darts</option>
+							<option value="3">3 darts</option>
+						</select>
+						<Button type="submit" className="rounded-full" disabled={!canManage || !gameStarted || matchComplete}>Submit</Button>
+					</div>
+					{Number(visitScore) === activeRemaining && tournament.doubleOutRequired ? (
+						<label className="flex items-center gap-2 px-2 text-sm font-semibold text-slate-700">
+							<input type="checkbox" checked={manualCheckoutDouble} onChange={(event) => setManualCheckoutDouble(event.target.checked)} disabled={!canManage || !gameStarted || matchComplete} />
+							Manual score finished on a double
+						</label>
+					) : null}
+					<div className="grid grid-cols-5 overflow-hidden rounded-md border border-slate-200 bg-white">
+						{(['Single', 'Double', 'Treble'] as DartMultiplier[]).map((multiplier) => (
+							<button key={multiplier} type="button" className={selectedMultiplier === multiplier ? 'min-h-14 border-b-2 border-ink px-2 py-2 text-sm font-bold text-ink' : 'min-h-14 px-2 py-2 text-sm font-bold text-slate-500 hover:bg-slate-50'} onClick={() => setSelectedMultiplier(multiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>
+								{multiplier}
+							</button>
+						))}
+						<button type="button" className="min-h-14 px-2 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: 'Bull', score: 50, isDouble: true })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>Bull<br /><span className="font-semibold">50</span></button>
+						<button type="button" className="min-h-14 px-2 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: '25', score: 25, isDouble: false })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>Outer<br /><span className="font-semibold">25</span></button>
+					</div>
+					<div className="grid grid-cols-5 overflow-hidden rounded-md border border-slate-200 bg-white">
+						{Array.from({ length: 20 }, (_, index) => index + 1).map((number) => (
+							<button key={number} type="button" className="grid min-h-16 place-items-center border-b border-r border-slate-200 px-1 py-2 text-2xl font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => scoreDart(number, selectedMultiplier)} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>
+								{formatDartButtonLabel(number, selectedMultiplier)}
+							</button>
+						))}
+					</div>
+					<div className="grid grid-cols-3 overflow-hidden rounded-md border border-slate-200 bg-white">
+						<button type="button" className="min-h-14 border-r border-slate-200 px-3 py-2 font-bold text-ink hover:bg-slate-50" onClick={undoLastTurn} disabled={!canManage || (turnHistory.length === 0 && pendingDarts.length === 0) || match.status === 'Completed'}>
+							<span className="inline-flex items-center gap-2"><RotateCcw size={16} /> Undo</span>
+						</button>
+						<button type="button" className="min-h-14 border-r border-slate-200 px-3 py-2 font-bold text-ink hover:bg-slate-50 disabled:opacity-50" onClick={() => recordDart({ label: 'Miss', score: 0, isDouble: false })} disabled={!canManage || !gameStarted || matchComplete || pendingDarts.length >= 3}>Miss</button>
+						<Button type="button" className="min-h-14 rounded-none" loading={isCompleting} loadingLabel="Completing..." disabled={!canManage || !matchComplete || match.status === 'Completed'} onClick={completeMatch}>Complete</Button>
 					</div>
 				</div>
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
@@ -323,11 +314,16 @@ function ThrowFirstButton({ name, selected, onClick }: { name: string; selected:
 
 function formatDartButtonLabel(number: number, multiplier: DartMultiplier) {
 	if (multiplier === 'Single') {
-		return String(number);
+		return <span>{number}</span>;
 	}
 
 	const multiplierValue = multiplier === 'Treble' ? 3 : 2;
-	return `${number} (${number * multiplierValue})`;
+	return (
+		<span className="inline-flex items-baseline gap-1">
+			<span>{number}</span>
+			<span className="text-sm font-semibold text-slate-500">{number * multiplierValue}</span>
+		</span>
+	);
 }
 
 function DartsPlayerPanel({ name, score, remaining, active, legs, lastScore, dartsThisLeg, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; legs: number; lastScore: number; dartsThisLeg: number; tone?: 'blue' | 'green' }) {
