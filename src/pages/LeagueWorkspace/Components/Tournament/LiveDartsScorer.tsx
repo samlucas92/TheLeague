@@ -233,26 +233,11 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 				</div>
 			)}
 			<form className="grid gap-3 rounded-lg border border-slate-200 p-3 text-left sm:p-4" onSubmit={submitVisit}>
-				<div className="flex items-start justify-between gap-3">
-					<div className="min-w-0">
-						<p className="text-sm font-semibold text-slate-700">{gameStarted ? `${activePlayerName} to throw` : 'Choose who throws first'}</p>
-						<p className="mt-1 text-xs text-slate-500">
-							{tournament.doubleInRequired ? 'Double in required' : 'Double in not required'} · {tournament.doubleOutRequired ? 'Double out required' : 'Double out not required'}
-						</p>
-					</div>
-					<div className="text-right">
-						{checkoutRoute ? (
-							<p className="mt-2 inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-700">
-								Checkout: {checkoutRoute}
-							</p>
-						) : null}
-					</div>
-				</div>
 				<div className="grid gap-3 rounded-md bg-slate-50 p-3">
 					<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
-						<div className="flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-500">
+						<div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold uppercase text-slate-500">
 							<span>Darts this turn</span>
-							<span>{currentTurnScore} scored</span>
+							<span>{checkoutRoute ? `Checkout: ${checkoutRoute}` : `${currentTurnScore} scored`}</span>
 						</div>
 						<div className="grid grid-cols-3 gap-2">
 							{[0, 1, 2].map((index) => {
