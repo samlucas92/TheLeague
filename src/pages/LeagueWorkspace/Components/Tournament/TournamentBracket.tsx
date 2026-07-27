@@ -4,8 +4,13 @@ import { bracketMatches, groupMatchesByRound, matchFormatLabel, roundTitle } fro
 
 export function BracketPanel({ tournament, memberNames, onViewMatch }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onChanged: () => Promise<void>; onViewMatch?: (match: TournamentMatch) => void }) {
 	const rounds = useMemo(() => buildBracketRounds(tournament), [tournament]);
+	const roundTops = useMemo(() => getBracketRoundTops(rounds), [rounds]);
 	const firstRoundMatchCount = rounds[0]?.[1].length ?? 0;
-	const bracketHeight = firstRoundMatchCount > 0 ? ((firstRoundMatchCount - 1) * BracketLayout.matchStepRem) + BracketLayout.matchHeightRem : BracketLayout.matchHeightRem;
+	const bracketHeight = Math.max(
+		BracketLayout.matchHeightRem,
+		...(roundTops.at(-1) ?? []).map((top) => top + BracketLayout.matchHeightRem),
+		firstRoundMatchCount > 0 ? ((firstRoundMatchCount - 1) * BracketLayout.matchStepRem) + BracketLayout.matchHeightRem : BracketLayout.matchHeightRem
+	);
 
 	return (
 		<div className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-4">
@@ -26,8 +31,8 @@ export function BracketPanel({ tournament, memberNames, onViewMatch }: { leagueI
 									tournament={tournament}
 									match={match}
 									memberNames={memberNames}
-									roundIndex={roundIndex}
-									matchIndex={matchIndex}
+									top={roundTops[roundIndex]?.[matchIndex] ?? 0}
+									isFirstRound={roundIndex === 0}
 									isFinalRound={roundIndex === rounds.length - 1}
 									onViewMatch={onViewMatch}
 								/>
@@ -50,14 +55,13 @@ const BracketLayout = {
 	matchStepRem: 6.5
 } as const;
 
-function BracketMatch({ tournament, match, memberNames, roundIndex, matchIndex, isFinalRound, onViewMatch }: { tournament: Tournament; match: TournamentMatch | null; memberNames: Map<string, string>; roundIndex: number; matchIndex: number; isFinalRound: boolean; onViewMatch?: (match: TournamentMatch) => void }) {
+function BracketMatch({ tournament, match, memberNames, top, isFirstRound, isFinalRound, onViewMatch }: { tournament: Tournament; match: TournamentMatch | null; memberNames: Map<string, string>; top: number; isFirstRound: boolean; isFinalRound: boolean; onViewMatch?: (match: TournamentMatch) => void }) {
 	const canOpen = Boolean(match && onViewMatch && match.playerOneMemberId && match.playerTwoMemberId);
-	const top = (((matchIndex + 0.5) * 2 ** roundIndex) - 0.5) * BracketLayout.matchStepRem;
 	return (
 		<button
 			type="button"
 			disabled={!canOpen}
-			className={`absolute left-0 right-0 grid gap-0 overflow-visible rounded-md border border-slate-200 bg-white text-left text-sm shadow-sm ${roundIndex === 0 ? '' : 'before:absolute before:right-full before:top-1/2 before:hidden before:h-px before:w-16 before:bg-slate-300 md:before:block'} ${isFinalRound ? '' : 'after:absolute after:left-full after:top-1/2 after:hidden after:h-px after:w-16 after:bg-slate-300 md:after:block'} ${canOpen ? 'hover:border-ink/30' : 'cursor-default'}`}
+			className={`absolute left-0 right-0 grid gap-0 overflow-visible rounded-md border border-slate-200 bg-white text-left text-sm shadow-sm ${isFirstRound ? '' : 'before:absolute before:right-full before:top-1/2 before:hidden before:h-px before:w-16 before:bg-slate-300 md:before:block'} ${isFinalRound ? '' : 'after:absolute after:left-full after:top-1/2 after:hidden after:h-px after:w-16 after:bg-slate-300 md:after:block'} ${canOpen ? 'hover:border-ink/30' : 'cursor-default'}`}
 			style={{ top: `${top}rem`, height: `${BracketLayout.matchHeightRem}rem` }}
 			onClick={() => match && canOpen && onViewMatch?.(match)}
 		>
@@ -66,6 +70,30 @@ function BracketMatch({ tournament, match, memberNames, roundIndex, matchIndex, 
 			<span className="sr-only">{match ? `${match.groupName ?? matchFormatLabel(tournament, match)} ${match.status}` : 'Future bracket match'}</span>
 		</button>
 	);
+}
+
+function getBracketRoundTops(rounds: Array<[number, Array<TournamentMatch | null>]>) {
+	const roundTops: number[][] = [];
+	for (let roundIndex = 0; roundIndex < rounds.length; roundIndex += 1) {
+		const matches = rounds[roundIndex][1];
+		if (roundIndex === 0) {
+			roundTops.push(matches.map((_, matchIndex) => matchIndex * BracketLayout.matchStepRem));
+			continue;
+		}
+
+		const previousTops = roundTops[roundIndex - 1];
+		roundTops.push(matches.map((_, matchIndex) => {
+			const firstFeederTop = previousTops[matchIndex * 2] ?? previousTops.at(-1) ?? 0;
+			const secondFeederTop = previousTops[(matchIndex * 2) + 1];
+			if (secondFeederTop == null) {
+				return firstFeederTop;
+			}
+
+			return ((firstFeederTop + secondFeederTop) / 2);
+		}));
+	}
+
+	return roundTops;
 }
 
 function BracketPlayer({ name, score, won, muted = false }: { name: string; score?: number | null; won: boolean; muted?: boolean }) {
