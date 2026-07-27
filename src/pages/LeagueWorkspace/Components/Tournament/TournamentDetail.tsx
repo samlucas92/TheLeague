@@ -12,7 +12,7 @@ import { TournamentMatchView } from './TournamentMatchView';
 import { NextMatchLarge, PlayerList, ProgressSummary, SideCard } from './TournamentSidebar';
 import { PubGolfDetail } from './PubGolfDetail';
 
-export function TournamentDetail({ leagueId, tournament, canManage, memberNames, onBack, onChanged, onDelete }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onBack: () => void; onChanged: () => Promise<void>; onDelete: () => Promise<void> }) {
+export function TournamentDetail({ leagueId, tournament, canManage, currentMemberId, memberNames, onBack, onChanged, onDelete }: { leagueId: string; tournament: Tournament; canManage: boolean; currentMemberId?: string; memberNames: Map<string, string>; onBack: () => void; onChanged: () => Promise<void>; onDelete: () => Promise<void> }) {
 	const [activeTab, setActiveTab] = useState<'Overview' | 'League' | 'Knockout Bracket' | 'Matches' | 'Players' | 'Details'>('Overview');
 	const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
 	const [actionsOpen, setActionsOpen] = useState(false);
@@ -100,7 +100,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 					</div>
 				</div>}
 				{isPubGolf ? (
-					<PubGolfDetail leagueId={leagueId} tournament={tournament} canManage={canManage} onChanged={onChanged} />
+					<PubGolfDetail leagueId={leagueId} tournament={tournament} canManage={canManage} currentMemberId={currentMemberId} onChanged={onChanged} />
 				) : <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
 					<div className="grid gap-4">
 						{activeTab === 'Overview' ? <TournamentOverview tournament={tournament} /> : null}

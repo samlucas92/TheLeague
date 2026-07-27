@@ -10,7 +10,7 @@ import { Avatar } from './Shared';
 
 type PubGolfTab = 'Overview' | 'Leaderboard' | 'Scorecards' | 'Course' | 'Players' | 'Details';
 
-export function PubGolfDetail({ leagueId, tournament, canManage, onChanged }: { leagueId: string; tournament: Tournament; canManage: boolean; onChanged: () => Promise<void> }) {
+export function PubGolfDetail({ leagueId, tournament, canManage, currentMemberId, onChanged }: { leagueId: string; tournament: Tournament; canManage: boolean; currentMemberId?: string; onChanged: () => Promise<void> }) {
 	const [activeTab, setActiveTab] = useState<PubGolfTab>('Overview');
 	const [selectedHoleId, setSelectedHoleId] = useState<string | null>(null);
 	const [scoringHoleId, setScoringHoleId] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export function PubGolfDetail({ leagueId, tournament, canManage, onChanged }: { 
 			<div className="grid gap-4 p-4">
 				{activeTab === 'Overview' ? <PubGolfOverview tournament={tournament} standings={standings} progress={progress} canManage={canManage} onScoreHole={setScoringHoleId} /> : null}
 				{activeTab === 'Leaderboard' ? <PubGolfLeaderboard standings={standings} /> : null}
-				{activeTab === 'Scorecards' ? <PubGolfScorecards tournament={tournament} standings={standings} /> : null}
+				{activeTab === 'Scorecards' ? <PubGolfScorecards tournament={tournament} standings={standings} currentMemberId={currentMemberId} canManage={canManage} onEditHole={setScoringHoleId} /> : null}
 				{activeTab === 'Course' ? <PubGolfCourse tournament={tournament} currentHoleId={progress.currentHole?.id ?? null} onSelectHole={setSelectedHoleId} /> : null}
 				{activeTab === 'Players' ? <PubGolfPlayers tournament={tournament} /> : null}
 				{activeTab === 'Details' ? <PubGolfDetails tournament={tournament} /> : null}
@@ -96,21 +96,29 @@ function PubGolfLeaderboard({ standings, compact = false }: { standings: PubGolf
 	);
 }
 
-function PubGolfScorecards({ tournament, standings }: { tournament: Tournament; standings: PubGolfStanding[] }) {
+function PubGolfScorecards({ tournament, standings, currentMemberId, canManage, onEditHole }: { tournament: Tournament; standings: PubGolfStanding[]; currentMemberId?: string; canManage: boolean; onEditHole: (holeId: string) => void }) {
 	const [view, setView] = useState<'mine' | 'all'>('mine');
-	const [memberId, setMemberId] = useState(standings[0]?.leagueMemberId ?? '');
+	const myMemberId = currentMemberId && standings.some((standing) => standing.leagueMemberId === currentMemberId) ? currentMemberId : standings[0]?.leagueMemberId ?? '';
+	const [memberId, setMemberId] = useState(myMemberId);
 	const selected = standings.find((standing) => standing.leagueMemberId === memberId) ?? standings[0];
 	const [holeIndex, setHoleIndex] = useState(0);
 	const currentHole = tournament.pubGolfHoles[holeIndex] ?? tournament.pubGolfHoles[0];
+	const isMyScorecard = selected?.leagueMemberId === myMemberId;
 	return (
 		<div className="grid gap-4">
 			<div className="grid grid-cols-2 rounded-md bg-slate-100 p-1 text-sm font-semibold">
-				<button type="button" className={view === 'mine' ? 'rounded bg-white px-3 py-2 text-ink shadow-sm' : 'px-3 py-2 text-slate-600'} onClick={() => setView('mine')}>My Scorecard</button>
+				<button type="button" className={view === 'mine' ? 'rounded bg-white px-3 py-2 text-ink shadow-sm' : 'px-3 py-2 text-slate-600'} onClick={() => { setMemberId(myMemberId); setView('mine'); }}>My Scorecard</button>
 				<button type="button" className={view === 'all' ? 'rounded bg-white px-3 py-2 text-ink shadow-sm' : 'px-3 py-2 text-slate-600'} onClick={() => setView('all')}>All Players</button>
 			</div>
-			{view === 'all' ? <PubGolfLeaderboard standings={standings} /> : null}
+			{view === 'all' ? <PubGolfScorecardPlayerList standings={standings} onSelect={(nextMemberId) => { setMemberId(nextMemberId); setView('mine'); }} /> : null}
 			{view === 'mine' && selected ? (
 				<>
+					{isMyScorecard ? null : (
+						<button type="button" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-ink" onClick={() => setView('all')}>
+							<ArrowLeft size={16} /> Back to all players
+						</button>
+					)}
+					<h3 className="font-bold text-ink">{isMyScorecard ? 'My Scorecard' : `${selected.displayName}'s Scorecard`}</h3>
 					<label className="relative block">
 						<SelectInput value={selected.leagueMemberId} onChange={(event) => setMemberId(event.target.value)}>
 							{standings.map((standing) => <option key={standing.leagueMemberId} value={standing.leagueMemberId}>{standing.displayName}</option>)}
@@ -137,7 +145,7 @@ function PubGolfScorecards({ tournament, standings }: { tournament: Tournament; 
 							const score = tournament.pubGolfScores.find((entry) => entry.holeId === hole.id && entry.leagueMemberId === selected.leagueMemberId)?.score ?? null;
 							const toPar = score == null ? null : score - hole.par;
 							const isCurrent = hole.id === currentHole?.id;
-							return <ScorecardHoleCard key={hole.id} hole={hole} score={score} toPar={toPar} isCurrent={isCurrent} />;
+							return <ScorecardHoleCard key={hole.id} hole={hole} score={score} toPar={toPar} isCurrent={isCurrent} canEdit={canManage} onEdit={() => onEditHole(hole.id)} />;
 						})}
 					</div>
 				</>
@@ -146,10 +154,37 @@ function PubGolfScorecards({ tournament, standings }: { tournament: Tournament; 
 	);
 }
 
-function ScorecardHoleCard({ hole, score, toPar, isCurrent }: { hole: PubGolfHole; score: number | null; toPar: number | null; isCurrent: boolean }) {
-	const complete = score != null;
+function PubGolfScorecardPlayerList({ standings, onSelect }: { standings: PubGolfStanding[]; onSelect: (memberId: string) => void }) {
 	return (
-		<div className={`grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-lg border bg-white p-3 ${isCurrent ? 'border-ink' : 'border-slate-200'}`}>
+		<div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+			<div className="border-b border-slate-100 px-3 py-3">
+				<h3 className="font-bold text-ink">All Players</h3>
+			</div>
+			<div className="divide-y divide-slate-100">
+				{standings.map((row, index) => (
+					<button key={row.leagueMemberId} type="button" className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 py-3 text-left hover:bg-slate-50" onClick={() => onSelect(row.leagueMemberId)}>
+						<span className="font-bold text-ink">{index + 1}</span>
+						<span className="inline-flex min-w-0 items-center gap-2">
+							<Avatar name={row.displayName} tone={index % 2 ? 'green' : 'blue'} />
+							<span className="truncate font-semibold text-ink">{row.displayName}</span>
+						</span>
+						<span className="grid justify-items-end text-sm">
+							<span className="font-bold text-ink">{row.totalScore}</span>
+							<span className={toParClass(row.toPar)}>{formatToPar(row.toPar)}</span>
+						</span>
+					</button>
+				))}
+			</div>
+			{standings.length === 0 ? <p className="p-6 text-center text-sm text-slate-600">No players in this tournament.</p> : null}
+		</div>
+	);
+}
+
+function ScorecardHoleCard({ hole, score, toPar, isCurrent, canEdit, onEdit }: { hole: PubGolfHole; score: number | null; toPar: number | null; isCurrent: boolean; canEdit: boolean; onEdit: () => void }) {
+	const complete = score != null;
+	const Wrapper = canEdit ? 'button' : 'div';
+	return (
+		<Wrapper type={canEdit ? 'button' : undefined} className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-3 rounded-lg border bg-white p-3 text-left ${isCurrent ? 'border-ink' : 'border-slate-200'} ${canEdit ? 'hover:border-ink/40 hover:bg-slate-50' : ''}`} onClick={canEdit ? onEdit : undefined}>
 			<span className={`grid h-8 w-8 place-items-center rounded-full border text-sm font-bold ${complete ? 'border-emerald-700 bg-emerald-700 text-white' : isCurrent ? 'border-ink bg-ink text-white' : 'border-slate-300 text-slate-500'}`}>
 				{complete ? <CheckCircle size={15} /> : hole.holeNumber}
 			</span>
@@ -165,8 +200,8 @@ function ScorecardHoleCard({ hole, score, toPar, isCurrent }: { hole: PubGolfHol
 					<StatMini label="To par" value={toPar == null ? '-' : formatToPar(toPar)} className={toPar == null ? '' : toParClass(toPar)} />
 				</div>
 			</div>
-			<span />
-		</div>
+			<span className="self-center text-xs font-semibold text-slate-500">{canEdit ? 'Edit' : ''}</span>
+		</Wrapper>
 	);
 }
 
@@ -273,6 +308,7 @@ function PubGolfScoreEntry({ leagueId, tournament, hole, onBack, onChanged }: { 
 			await onChanged();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Could not save scores.');
+		} finally {
 			setIsSaving(false);
 		}
 	}

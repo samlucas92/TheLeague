@@ -45,6 +45,7 @@ export function TournamentsPage() {
 				leagueId={league.id}
 				tournament={selectedTournament}
 				canManage={canManage}
+				currentMemberId={currentMember?.id}
 				memberNames={memberNames}
 				onBack={() => setSelectedTournamentId(null)}
 				onChanged={refresh}
