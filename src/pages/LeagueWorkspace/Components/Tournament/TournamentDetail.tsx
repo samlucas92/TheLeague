@@ -3,11 +3,11 @@ import { ArrowLeft, Calendar, ChevronDown, Target, Trash2, Trophy, Users } from 
 import { Button } from '../../../../components/Button';
 import { StatusBadge } from '../../../../components/StatusBadge';
 import type { Tournament } from '../../../../services/types';
-import { formatDate, formatGameType, getNextMatch, getStatusTone, matchFormatLabel } from './helpers';
+import { bracketMatches, formatDate, formatGameType, getNextMatch, getStatusTone, matchFormatLabel } from './helpers';
 import { GameArtwork, Meta } from './Shared';
 import { BracketPanel } from './TournamentBracket';
 import { DartsPanel } from './TournamentDartsRounds';
-import { LeagueStagePlaceholder, MatchesList, PlayersTable, RecentResults, TournamentDetailsPanel, TournamentOverview } from './TournamentDetailPanels';
+import { LeagueStage, MatchesList, PlayersTable, RecentResults, TournamentDetailsPanel, TournamentOverview } from './TournamentDetailPanels';
 import { TournamentMatchView } from './TournamentMatchView';
 import { NextMatchLarge, PlayerList, ProgressSummary, SideCard } from './TournamentSidebar';
 import { PubGolfDetail } from './PubGolfDetail';
@@ -19,6 +19,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 	const nextMatch = getNextMatch(tournament);
 	const recentResults = tournament.matches.filter((match) => match.status === 'Completed').slice(-4).reverse();
 	const activeRound = tournament.rounds.find((round) => !round.isComplete);
+	const hasBracket = bracketMatches(tournament).length > 0;
 	const selectedMatch = useMemo(
 		() => tournament.matches.find((match) => match.id === selectedMatchId) ?? null,
 		[tournament.matches, selectedMatchId]
@@ -76,6 +77,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 						{actionsOpen ? (
 							<div className="absolute right-10 top-11 z-10 grid min-w-48 gap-1 rounded-md border border-slate-200 bg-white p-2 text-sm font-semibold shadow-lg">
 								<button type="button" className="rounded px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setActiveTab('Details'); setActionsOpen(false); }}>View details</button>
+								{tournament.structure === 'LeagueAndKnockout' ? <button type="button" className="rounded px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setActiveTab('League'); setActionsOpen(false); }}>View league</button> : null}
 								{tournament.format === 'SingleEliminationBracket' ? <button type="button" className="rounded px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setActiveTab('Knockout Bracket'); setActionsOpen(false); }}>View bracket</button> : null}
 								<button type="button" className="rounded px-3 py-2 text-left hover:bg-slate-50" onClick={() => { setActiveTab('Matches'); setActionsOpen(false); }}>View matches</button>
 								{canManage ? <button type="button" className="rounded px-3 py-2 text-left text-red-700 hover:bg-red-50" onClick={onDelete}>Delete tournament</button> : null}
@@ -102,9 +104,16 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 				) : <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
 					<div className="grid gap-4">
 						{activeTab === 'Overview' ? <TournamentOverview tournament={tournament} /> : null}
-						{activeTab === 'League' ? <LeagueStagePlaceholder tournament={tournament} /> : null}
+						{activeTab === 'League' ? <LeagueStage tournament={tournament} memberNames={memberNames} onView={(match) => setSelectedMatchId(match.id)} /> : null}
 						{activeTab === 'Knockout Bracket' && tournament.format === 'SingleEliminationBracket' ? (
-							<BracketPanel leagueId={leagueId} tournament={tournament} canManage={canManage} memberNames={memberNames} onChanged={onChanged} />
+							hasBracket ? (
+								<BracketPanel leagueId={leagueId} tournament={tournament} canManage={canManage} memberNames={memberNames} onChanged={onChanged} />
+							) : (
+								<div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
+									<h3 className="font-bold text-ink">Knockout bracket waiting</h3>
+									<p className="mt-2 text-sm text-slate-600">Finish the league stage and the bracket will be generated from the standings.</p>
+								</div>
+							)
 						) : null}
 						{activeTab === 'Knockout Bracket' && tournament.format !== 'SingleEliminationBracket' ? (
 							<DartsPanel leagueId={leagueId} tournament={tournament} activeRound={activeRound} canManage={canManage} memberNames={memberNames} onChanged={onChanged} />

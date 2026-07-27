@@ -485,7 +485,7 @@ function TournamentStructureStep({ structure, setStructure }: { structure: Tourn
 				<p className="mt-1 text-sm text-slate-600">Choose how the tournament will be played.</p>
 			</div>
 			<div className="grid gap-3">
-				<RadioPanel checked={structure === 'LeagueAndKnockout'} title="League + knockout" description="Everyone plays in a league. Top players progress to a knockout bracket." onClick={() => setStructure('LeagueAndKnockout')} />
+				<RadioPanel checked={structure === 'LeagueAndKnockout'} title="League + knockout" description="Everyone plays a league stage first. The knockout bracket is generated from those results." onClick={() => setStructure('LeagueAndKnockout')} />
 				<RadioPanel checked={structure === 'KnockoutOnly'} title="Knockout only" description="Single elimination bracket. Lose once and you're out." onClick={() => setStructure('KnockoutOnly')} />
 			</div>
 		</div>

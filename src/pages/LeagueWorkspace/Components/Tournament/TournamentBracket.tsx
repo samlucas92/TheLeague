@@ -3,11 +3,11 @@ import { Button } from '../../../../components/Button';
 import { SelectInput, TextInput } from '../../../../components/FormField';
 import { leagueService } from '../../../../services/leagueService';
 import type { Tournament, TournamentMatch } from '../../../../services/types';
-import { groupMatchesByRound, roundTitle } from './helpers';
+import { bracketMatches, groupMatchesByRound, roundTitle } from './helpers';
 import { PlayerScoreRow } from './Shared';
 
 export function BracketPanel({ leagueId, tournament, canManage, memberNames, onChanged }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onChanged: () => Promise<void> }) {
-	const rounds = useMemo(() => groupMatchesByRound(tournament.matches), [tournament.matches]);
+	const rounds = useMemo(() => groupMatchesByRound(bracketMatches(tournament)), [tournament]);
 	return (
 		<div className="overflow-x-auto rounded-lg border border-slate-200 p-4">
 			<div className="grid min-w-[720px] gap-4" style={{ gridTemplateColumns: `repeat(${Math.max(rounds.length, 1)}, minmax(10rem, 1fr))` }}>

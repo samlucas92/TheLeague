@@ -26,6 +26,14 @@ export function groupMatchesByRound(matches: TournamentMatch[]) {
 	return [...grouped.entries()].sort(([left], [right]) => left - right);
 }
 
+export function bracketMatches(tournament: Tournament) {
+	return tournament.matches.filter((match) => match.roundNumber > 0);
+}
+
+export function leagueMatches(tournament: Tournament) {
+	return tournament.matches.filter((match) => match.roundNumber === 0);
+}
+
 export function getNextMatch(tournament: Tournament) {
 	return tournament.matches.find((match) => match.status === 'Ready' && match.playerOneMemberId && match.playerTwoMemberId) ?? null;
 }
@@ -111,6 +119,14 @@ export function gameRulesSummary(tournament: Tournament) {
 }
 
 export function structureLabel(tournament: Tournament) {
+	if (tournament.gameType === 'PubGolf') {
+		return 'Course scorecard';
+	}
+
+	if (tournament.format === 'RoundElimination') {
+		return 'Round elimination';
+	}
+
 	return tournament.structure === 'LeagueAndKnockout' ? 'League + knockout' : 'Knockout only';
 }
 
