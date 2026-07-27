@@ -6,7 +6,7 @@ export function GameArtwork({ gameType, compact = false }: { gameType: Tournamen
 	const isPool = gameType === 'Pool';
 	return (
 		<div className={`grid place-items-center rounded-md bg-slate-50 text-ink ring-1 ring-slate-200 ${compact ? 'h-24 w-24' : 'h-32 w-32'}`}>
-			{isPool ? <PoolRackIcon /> : <DartsIcon />}
+			{gameType === 'PubGolf' ? <PubGolfIcon /> : isPool ? <PoolRackIcon /> : <DartsIcon />}
 		</div>
 	);
 }
@@ -32,6 +32,17 @@ export function DartsIcon() {
 			<div className="absolute h-px w-20 bg-current" />
 			<div className="absolute h-20 w-px bg-current" />
 			<Target size={28} strokeWidth={1.6} className="absolute" />
+		</div>
+	);
+}
+
+export function PubGolfIcon() {
+	return (
+		<div className="relative grid h-20 w-20 place-items-center">
+			<div className="absolute bottom-3 h-10 w-16 rounded-[50%] border-2 border-current" />
+			<div className="absolute left-10 top-2 h-12 w-px bg-current" />
+			<div className="absolute left-10 top-2 h-5 w-7 border-y-2 border-r-2 border-current" />
+			<div className="absolute bottom-8 h-4 w-4 rounded-full border-2 border-current" />
 		</div>
 	);
 }
@@ -63,4 +74,3 @@ export function Avatar({ name, tone = 'blue', large = false }: { name: string; t
 export function Meta({ icon, label }: { icon: ReactNode; label: string }) {
 	return <span className="inline-flex items-center gap-1.5">{icon}{label}</span>;
 }
-

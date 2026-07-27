@@ -12,7 +12,8 @@ export function filterTournaments(tournaments: Tournament[], filter: TournamentF
 		const gameMatches =
 			gameFilter === 'All games' ||
 			(gameFilter === 'Pool' && tournament.gameType === 'Pool') ||
-			(gameFilter === 'Darts' && isDartsTournament(tournament));
+			(gameFilter === 'Darts' && isDartsTournament(tournament)) ||
+			(gameFilter === 'Pub Golf' && tournament.gameType === 'PubGolf');
 		return statusMatches && gameMatches;
 	});
 }
@@ -53,6 +54,10 @@ export function formatGameType(tournament: Tournament) {
 
 	if (tournament.gameType === 'DartsHighestScore') {
 		return 'Darts (Highest score)';
+	}
+
+	if (tournament.gameType === 'PubGolf') {
+		return 'Pub Golf';
 	}
 
 	return 'Pool (1 vs 1)';
@@ -96,6 +101,10 @@ export function gameRulesSummary(tournament: Tournament) {
 
 	if (tournament.gameType === 'DartsHighestScore') {
 		return ['Highest score', `Eliminate ${tournament.eliminatePerRound} each round`, `Minimum ${tournament.minimumPlayers || 2} players`];
+	}
+
+	if (tournament.gameType === 'PubGolf') {
+		return ['Pub Golf', `${tournament.pubGolfHoles.length || tournament.framesOrLegs || 9} holes`, `${tournament.participantCount} players`];
 	}
 
 	return ['Pool (1 vs 1)', matchFormatLabel(tournament), ...(tournament.poolRules?.length ? tournament.poolRules : ['8-ball'])];

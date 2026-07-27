@@ -52,12 +52,14 @@ export const leagueService = {
 	failChallenge: (leagueId: string, challengeId: string, targetMemberId?: string) =>
 		postJson(`/leagues/${leagueId}/challenges/${challengeId}/fail`, { targetMemberId }),
 	tournaments: (leagueId: string) => apiRequest<Tournament[]>(`/leagues/${leagueId}/tournaments`),
-	createTournament: (leagueId: string, input: { name: string; gameType: string; format?: string; structure?: string; matchRule?: string; framesOrLegs?: number; poolRules?: string[]; breakRule?: string; callShotRequired?: boolean; allowRerack?: boolean; pushOutAfterFouls?: boolean; doubleInRequired?: boolean; doubleOutRequired?: boolean; startScore?: number | null; minimumPlayers?: number; roundTimeLimitMinutes?: number | null; participantMemberIds: string[]; winnerPoints: number; runnerUpPoints: number; matchWinPoints: number; eliminatePerRound: number; challengeId?: string | null }) =>
+	createTournament: (leagueId: string, input: { name: string; gameType: string; format?: string; structure?: string; matchRule?: string; framesOrLegs?: number; poolRules?: string[]; breakRule?: string; callShotRequired?: boolean; allowRerack?: boolean; pushOutAfterFouls?: boolean; doubleInRequired?: boolean; doubleOutRequired?: boolean; startScore?: number | null; minimumPlayers?: number; roundTimeLimitMinutes?: number | null; participantMemberIds: string[]; winnerPoints: number; runnerUpPoints: number; matchWinPoints: number; eliminatePerRound: number; challengeId?: string | null; pubGolfHoles?: Array<{ venue: string; drink: string; par: number; holeRule?: string | null; hazard?: string | null; penalty?: number | null; notes?: string | null }> }) =>
 		postJson<Tournament>(`/leagues/${leagueId}/tournaments`, input),
 	completeTournamentMatch: (leagueId: string, tournamentId: string, matchId: string, input: { winnerMemberId: string; playerOneScore?: number | null; playerTwoScore?: number | null }) =>
 		postJson<Tournament>(`/leagues/${leagueId}/tournaments/${tournamentId}/matches/${matchId}/complete`, input),
 	scoreTournamentRound: (leagueId: string, tournamentId: string, scores: Record<string, number>) =>
 		postJson<Tournament>(`/leagues/${leagueId}/tournaments/${tournamentId}/rounds/score`, { scores }),
+	scorePubGolfHole: (leagueId: string, tournamentId: string, holeId: string, scores: Record<string, number | null>) =>
+		postJson<Tournament>(`/leagues/${leagueId}/tournaments/${tournamentId}/pub-golf/scores`, { holeId, scores }),
 	deleteTournament: (leagueId: string, tournamentId: string) =>
 		apiRequest<void>(`/leagues/${leagueId}/tournaments/${tournamentId}`, { method: 'DELETE' }),
 	submit: (leagueId: string, input: { challengeId: string; requestedPoints?: number | null; publicReason: string }) =>

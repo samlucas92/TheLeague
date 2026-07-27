@@ -6,11 +6,12 @@ import { Modal } from '../../../components/Modal';
 import { leagueService } from '../../../services/leagueService';
 import type { League, Member } from '../../../services/types';
 
-type GameChoice = 'Pool' | 'Darts';
+type GameChoice = 'Pool' | 'Darts' | 'PubGolf';
 type DartsMode = 'Darts301' | 'Darts501' | 'DartsHighestScore';
 type PoolMatchFormat = 'FirstToFrames' | 'BestOfFrames';
 type TournamentStructure = 'LeagueAndKnockout' | 'KnockoutOnly';
 type PoolBreakRule = 'NormalBreak' | 'WinnerBreak' | 'AlternateBreak';
+type PubGolfHoleForm = { venue: string; drink: string; par: string; holeRule: string; hazard: string; penalty: string; notes: string };
 
 const steps = ['Type', 'Structure', 'Format', 'Settings', 'Players', 'Review'];
 
@@ -53,6 +54,7 @@ export function CreateTournamentModal({
 	const [winnerPoints, setWinnerPoints] = useState('20');
 	const [runnerUpPoints, setRunnerUpPoints] = useState('10');
 	const [matchWinPoints, setMatchWinPoints] = useState('0');
+	const [pubGolfHoles, setPubGolfHoles] = useState<PubGolfHoleForm[]>(defaultPubGolfHoles());
 	const [error, setError] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -101,12 +103,17 @@ export function CreateTournamentModal({
 			return;
 		}
 
+		if (gameChoice === 'PubGolf' && step === 2 && pubGolfHoles.some((hole) => !hole.venue.trim() || !hole.drink.trim() || Number(hole.par) < 1)) {
+			setError('Each pub golf hole needs a venue, drink and par.');
+			return;
+		}
+
 		if (step === 5 && participantMemberIds.length < 2) {
 			setError('Choose at least two players.');
 			return;
 		}
 
-		setStep((current) => Math.min(6, current + 1));
+		setStep((current) => gameChoice === 'PubGolf' && current === 2 ? 5 : Math.min(6, current + 1));
 	}
 
 	async function submit(event: FormEvent) {
@@ -118,11 +125,11 @@ export function CreateTournamentModal({
 			const isDartsHighestScore = gameChoice === 'Darts' && dartsMode === 'DartsHighestScore';
 			await leagueService.createTournament(league.id, {
 				name,
-				gameType: gameChoice === 'Pool' ? 'Pool' : dartsMode,
-				format: isDartsHighestScore ? 'RoundElimination' : 'SingleEliminationBracket',
+				gameType: gameChoice === 'Pool' ? 'Pool' : gameChoice === 'PubGolf' ? 'PubGolf' : dartsMode,
+				format: gameChoice === 'PubGolf' ? 'PubGolfCourse' : isDartsHighestScore ? 'RoundElimination' : 'SingleEliminationBracket',
 				structure,
 				matchRule: poolMatchFormat === 'FirstToFrames' ? 'FirstTo' : 'BestOf',
-				framesOrLegs: Number(poolFrames),
+				framesOrLegs: gameChoice === 'PubGolf' ? pubGolfHoles.length : Number(poolFrames),
 				poolRules: gameChoice === 'Pool' ? poolRules : [],
 				breakRule,
 				callShotRequired: requireCallShot,
@@ -137,7 +144,16 @@ export function CreateTournamentModal({
 				winnerPoints: Number(winnerPoints),
 				runnerUpPoints: Number(runnerUpPoints),
 				matchWinPoints: Number(matchWinPoints),
-				eliminatePerRound: Number(eliminatePerRound)
+				eliminatePerRound: Number(eliminatePerRound),
+				pubGolfHoles: gameChoice === 'PubGolf' ? pubGolfHoles.map((hole) => ({
+					venue: hole.venue,
+					drink: hole.drink,
+					par: Number(hole.par),
+					holeRule: hole.holeRule || null,
+					hazard: hole.hazard || null,
+					penalty: hole.penalty ? Number(hole.penalty) : null,
+					notes: hole.notes || null
+				})) : undefined
 			});
 			resetForm();
 			await onSaved();
@@ -154,6 +170,7 @@ export function CreateTournamentModal({
 		setDescription('');
 		setNotes('');
 		setSearch('');
+		setPubGolfHoles(defaultPubGolfHoles());
 	}
 
 	return (
@@ -180,6 +197,13 @@ export function CreateTournamentModal({
 								selected={gameChoice === 'Darts'}
 								onClick={() => setGameChoice('Darts')}
 								icon={<Target size={48} strokeWidth={1.7} />}
+							/>
+							<GameCard
+								title="Pub Golf"
+								description="Course scorecards across 9 holes. Lowest score wins."
+								selected={gameChoice === 'PubGolf'}
+								onClick={() => setGameChoice('PubGolf')}
+								icon={<PubGolfIcon />}
 							/>
 						</div>
 						<hr className="border-slate-200" />
@@ -213,10 +237,13 @@ export function CreateTournamentModal({
 						</div>
 					</div>
 				) : null}
-				{step === 2 ? (
+				{step === 2 && gameChoice !== 'PubGolf' ? (
 					<TournamentStructureStep structure={structure} setStructure={setStructure} />
 				) : null}
-				{step === 3 ? (
+				{step === 2 && gameChoice === 'PubGolf' ? (
+					<PubGolfCourseBuilder holes={pubGolfHoles} setHoles={setPubGolfHoles} />
+				) : null}
+				{step === 3 && gameChoice !== 'PubGolf' ? (
 					<MatchFormatStep
 						gameChoice={gameChoice}
 						dartsMode={dartsMode}
@@ -290,9 +317,9 @@ export function CreateTournamentModal({
 						</div>
 						<div className="grid gap-3 rounded-md bg-slate-50 p-4 text-sm text-slate-700">
 							<p><span className="font-bold text-ink">Name:</span> {name}</p>
-							<p><span className="font-bold text-ink">Game:</span> {gameChoice === 'Pool' ? 'Pool knockout' : formatDartsMode(dartsMode)}</p>
-							<p><span className="font-bold text-ink">Structure:</span> {formatStructure(structure)}</p>
-							<p><span className="font-bold text-ink">Format:</span> {formatMatchRule(poolMatchFormat, poolFrames, gameChoice)}</p>
+							<p><span className="font-bold text-ink">Game:</span> {gameChoice === 'Pool' ? 'Pool knockout' : gameChoice === 'PubGolf' ? 'Pub Golf' : formatDartsMode(dartsMode)}</p>
+							{gameChoice !== 'PubGolf' ? <p><span className="font-bold text-ink">Structure:</span> {formatStructure(structure)}</p> : null}
+							<p><span className="font-bold text-ink">Format:</span> {gameChoice === 'PubGolf' ? `${pubGolfHoles.length} holes` : formatMatchRule(poolMatchFormat, poolFrames, gameChoice)}</p>
 							<p><span className="font-bold text-ink">Players:</span> {selectedMembers.map((member) => member.displayName).join(', ')}</p>
 							<p><span className="font-bold text-ink">Scoring:</span> Winner {formatSignedPoints(Number(winnerPoints))}, runner-up {formatSignedPoints(Number(runnerUpPoints))}, match win {formatSignedPoints(Number(matchWinPoints))}</p>
 							{description ? <p><span className="font-bold text-ink">Description:</span> {description}</p> : null}
@@ -313,7 +340,7 @@ export function CreateTournamentModal({
 				) : null}
 				{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 				<div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
-					<Button type="button" variant="secondary" onClick={step === 1 ? onClose : () => setStep((current) => current - 1)}>
+					<Button type="button" variant="secondary" onClick={step === 1 ? onClose : () => setStep((current) => gameChoice === 'PubGolf' && current === 5 ? 2 : current - 1)}>
 						{step === 1 ? 'Cancel' : 'Previous'}
 					</Button>
 					{step < 6 ? (
@@ -363,6 +390,90 @@ function GameCard({ title, description, selected, icon, onClick }: { title: stri
 				{selected ? <Circle size={8} fill="currentColor" /> : null}
 			</span>
 		</button>
+	);
+}
+
+const pubGolfHazards = ['', 'Water Hazard', 'Bunker', 'Rough', 'Out of Bounds', 'Time Hazard', 'Blind Shot', 'Quiet Zone', 'One Handed', 'Straw Only', 'Lucky Draw'];
+
+function defaultPubGolfHoles(): PubGolfHoleForm[] {
+	const venues = ['Old Crown', 'Queens Arms', 'The Castle', 'The Griffin', 'The Final Bell', 'The Station', 'The White Horse', 'The Red Lion', 'Destination'];
+	const drinks = ['Pint of Lager', 'Whiskey & mixer', 'Bottle of cider', 'Pint of lager', 'Rum & mixer', 'House pint', 'Ale', 'Lager', 'Final drink'];
+	return venues.map((venue, index) => ({
+		venue,
+		drink: drinks[index],
+		par: index % 3 === 0 ? '4' : '3',
+		holeRule: '',
+		hazard: '',
+		penalty: '',
+		notes: ''
+	}));
+}
+
+function PubGolfCourseBuilder({ holes, setHoles }: { holes: PubGolfHoleForm[]; setHoles: (holes: PubGolfHoleForm[]) => void }) {
+	function updateHole(index: number, patch: Partial<PubGolfHoleForm>) {
+		setHoles(holes.map((hole, holeIndex) => holeIndex === index ? { ...hole, ...patch } : hole));
+	}
+
+	function moveHole(index: number, direction: -1 | 1) {
+		const nextIndex = index + direction;
+		if (nextIndex < 0 || nextIndex >= holes.length) {
+			return;
+		}
+
+		const next = [...holes];
+		[next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+		setHoles(next);
+	}
+
+	return (
+		<div className="grid gap-5">
+			<div>
+				<h3 className="text-lg font-bold text-ink">Build the course</h3>
+				<p className="mt-1 text-sm text-slate-600">Add the venues, drinks, pars and optional hazards for pub golf.</p>
+			</div>
+			<div className="grid gap-3">
+				{holes.map((hole, index) => (
+					<div key={index} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3">
+						<div className="flex items-center justify-between gap-3">
+							<p className="font-bold text-ink">Hole {index + 1}</p>
+							<div className="flex gap-2">
+								<Button type="button" variant="secondary" className="px-3" onClick={() => moveHole(index, -1)} disabled={index === 0}>Up</Button>
+								<Button type="button" variant="secondary" className="px-3" onClick={() => moveHole(index, 1)} disabled={index === holes.length - 1}>Down</Button>
+								<Button type="button" variant="danger" className="px-3" onClick={() => setHoles(holes.filter((_, holeIndex) => holeIndex !== index))} disabled={holes.length <= 1}>Delete</Button>
+							</div>
+						</div>
+						<div className="grid gap-3 sm:grid-cols-3">
+							<Field label="Venue">
+								<TextInput value={hole.venue} onChange={(event) => updateHole(index, { venue: event.target.value })} required />
+							</Field>
+							<Field label="Drink">
+								<TextInput value={hole.drink} onChange={(event) => updateHole(index, { drink: event.target.value })} required />
+							</Field>
+							<Field label="Par">
+								<TextInput type="number" min="1" value={hole.par} onChange={(event) => updateHole(index, { par: event.target.value })} required />
+							</Field>
+						</div>
+						<div className="grid gap-3 sm:grid-cols-3">
+							<Field label="Hole rule">
+								<TextInput value={hole.holeRule} onChange={(event) => updateHole(index, { holeRule: event.target.value })} placeholder="Left hand only" />
+							</Field>
+							<Field label="Hazard">
+								<SelectInput value={hole.hazard} onChange={(event) => updateHole(index, { hazard: event.target.value, penalty: event.target.value && !hole.penalty ? '2' : hole.penalty })}>
+									{pubGolfHazards.map((hazard) => <option key={hazard} value={hazard}>{hazard || 'No hazard'}</option>)}
+								</SelectInput>
+							</Field>
+							<Field label="Penalty">
+								<TextInput type="number" value={hole.penalty} onChange={(event) => updateHole(index, { penalty: event.target.value })} placeholder="+2" />
+							</Field>
+						</div>
+						<Field label="Notes">
+							<TextArea value={hole.notes} onChange={(event) => updateHole(index, { notes: event.target.value })} placeholder="Keep it moving!" />
+						</Field>
+					</div>
+				))}
+			</div>
+			<Button type="button" variant="secondary" onClick={() => setHoles([...holes, { venue: '', drink: '', par: '3', holeRule: '', hazard: '', penalty: '', notes: '' }])}>Add hole</Button>
+		</div>
 	);
 }
 
@@ -601,6 +712,17 @@ function PoolIcon({ small = false }: { small?: boolean }) {
 		<span className="relative grid place-items-center" style={{ width: size, height: size }}>
 			<Disc3 size={size} strokeWidth={1.6} />
 			<span className="absolute h-2 w-2 rounded-full bg-current" />
+		</span>
+	);
+}
+
+function PubGolfIcon() {
+	return (
+		<span className="relative grid h-16 w-16 place-items-center text-ink">
+			<span className="absolute bottom-2 h-8 w-12 rounded-[50%] border border-current" />
+			<span className="absolute left-8 top-2 h-9 w-px bg-current" />
+			<span className="absolute left-8 top-2 h-4 w-5 border-y border-r border-current" />
+			<span className="absolute bottom-6 h-3 w-3 rounded-full border border-current" />
 		</span>
 	);
 }

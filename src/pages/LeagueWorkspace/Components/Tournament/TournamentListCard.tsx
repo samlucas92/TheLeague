@@ -9,6 +9,7 @@ import { NextMatchMini } from './TournamentSidebar';
 export function TournamentListCard({ tournament, canManage, memberNames, onView, onDelete }: { tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onView: () => void; onDelete: () => Promise<void> }) {
 	const nextMatch = getNextMatch(tournament);
 	const winner = tournament.winnerName ?? (tournament.winnerMemberId ? memberNames.get(tournament.winnerMemberId) : null);
+	const pubGolfProgress = getPubGolfProgress(tournament);
 
 	return (
 		<article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[6rem_minmax(0,1fr)] lg:grid-cols-[8rem_minmax(0,1fr)_15rem]">
@@ -35,6 +36,13 @@ export function TournamentListCard({ tournament, canManage, memberNames, onView,
 						<p className="text-xs font-semibold text-slate-500">Winner</p>
 						<p className="font-bold text-ink">{winner}</p>
 					</div>
+				) : tournament.gameType === 'PubGolf' && pubGolfProgress ? (
+					<div className="text-left lg:text-right">
+						<p className="text-xs font-semibold text-slate-500">Current hole</p>
+						<p className="font-bold text-ink">{pubGolfProgress.currentHole.holeNumber} - {pubGolfProgress.currentHole.venue}</p>
+						<p className="text-sm text-slate-600">Par {pubGolfProgress.currentHole.par}</p>
+						<p className="mt-1 text-xs font-semibold text-slate-500">{pubGolfProgress.completed} / {pubGolfProgress.total} holes completed</p>
+					</div>
 				) : nextMatch ? (
 					<NextMatchMini match={nextMatch} memberNames={memberNames} />
 				) : (
@@ -49,4 +57,22 @@ export function TournamentListCard({ tournament, canManage, memberNames, onView,
 			</div>
 		</article>
 	);
+}
+
+function getPubGolfProgress(tournament: Tournament) {
+	if (tournament.gameType !== 'PubGolf' || tournament.pubGolfHoles.length === 0) {
+		return null;
+	}
+
+	const completed = tournament.pubGolfHoles.filter((hole) =>
+		tournament.participants.length > 0 &&
+		tournament.participants.every((participant) =>
+			tournament.pubGolfScores.some((score) => score.holeId === hole.id && score.leagueMemberId === participant.leagueMemberId && score.score != null)
+		)
+	).length;
+	return {
+		completed,
+		total: tournament.pubGolfHoles.length,
+		currentHole: tournament.pubGolfHoles[Math.min(completed, tournament.pubGolfHoles.length - 1)]
+	};
 }

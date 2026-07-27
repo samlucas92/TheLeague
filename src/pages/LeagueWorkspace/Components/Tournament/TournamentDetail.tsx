@@ -10,6 +10,7 @@ import { DartsPanel } from './TournamentDartsRounds';
 import { LeagueStagePlaceholder, MatchesList, PlayersTable, RecentResults, TournamentDetailsPanel, TournamentOverview } from './TournamentDetailPanels';
 import { TournamentMatchView } from './TournamentMatchView';
 import { NextMatchLarge, PlayerList, ProgressSummary, SideCard } from './TournamentSidebar';
+import { PubGolfDetail } from './PubGolfDetail';
 
 export function TournamentDetail({ leagueId, tournament, canManage, memberNames, onBack, onChanged, onDelete }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onBack: () => void; onChanged: () => Promise<void>; onDelete: () => Promise<void> }) {
 	const [activeTab, setActiveTab] = useState<'Overview' | 'League' | 'Knockout Bracket' | 'Matches' | 'Players' | 'Details'>('Overview');
@@ -48,6 +49,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 		`Players (${tournament.participantCount})`,
 		'Details'
 	].filter(Boolean) as string[]));
+	const isPubGolf = tournament.gameType === 'PubGolf';
 
 	return (
 		<section className="grid gap-4">
@@ -64,7 +66,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 						</div>
 						<div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm text-slate-600">
 							<Meta icon={<Target size={15} />} label={formatGameType(tournament)} />
-							<Meta icon={<Trophy size={15} />} label={tournament.format === 'SingleEliminationBracket' ? matchFormatLabel(tournament) : `Eliminate ${tournament.eliminatePerRound} each round`} />
+							<Meta icon={<Trophy size={15} />} label={isPubGolf ? `${tournament.pubGolfHoles.length || 9} holes` : tournament.format === 'SingleEliminationBracket' ? matchFormatLabel(tournament) : `Eliminate ${tournament.eliminatePerRound} each round`} />
 							<Meta icon={<Users size={15} />} label={`${tournament.participantCount} players`} />
 							<Meta icon={<Calendar size={15} />} label={`Started ${formatDate(tournament.createdAt)}`} />
 						</div>
@@ -82,7 +84,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 						{canManage ? <Button type="button" variant="ghost" className="px-2" icon={<Trash2 size={16} />} onClick={onDelete} aria-label="Delete tournament" /> : null}
 					</div>
 				</header>
-				<div className="border-b border-slate-200 px-4">
+				{isPubGolf ? null : <div className="border-b border-slate-200 px-4">
 					<div className="flex gap-6 overflow-x-auto text-sm font-semibold">
 						{tabs.map((tab) => {
 							const tabKey = tab.startsWith('Players') ? 'Players' : tab;
@@ -94,8 +96,10 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 							);
 						})}
 					</div>
-				</div>
-				<div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+				</div>}
+				{isPubGolf ? (
+					<PubGolfDetail leagueId={leagueId} tournament={tournament} canManage={canManage} onChanged={onChanged} />
+				) : <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
 					<div className="grid gap-4">
 						{activeTab === 'Overview' ? <TournamentOverview tournament={tournament} /> : null}
 						{activeTab === 'League' ? <LeagueStagePlaceholder tournament={tournament} /> : null}
@@ -121,7 +125,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 							<PlayerList participants={tournament.participants} />
 						</SideCard>
 					</aside>
-				</div>
+				</div>}
 			</article>
 		</section>
 	);

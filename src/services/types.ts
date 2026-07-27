@@ -84,8 +84,8 @@ export type ChallengeOutcome = {
 export type Tournament = {
 	id: string;
 	name: string;
-	gameType: 'Pool' | 'Darts301' | 'Darts501' | 'DartsHighestScore';
-	format: 'SingleEliminationBracket' | 'RoundElimination';
+	gameType: 'Pool' | 'Darts301' | 'Darts501' | 'DartsHighestScore' | 'PubGolf';
+	format: 'SingleEliminationBracket' | 'RoundElimination' | 'PubGolfCourse';
 	structure: 'KnockoutOnly' | 'LeagueAndKnockout';
 	matchRule: 'FirstTo' | 'BestOf';
 	framesOrLegs: number;
@@ -113,6 +113,8 @@ export type Tournament = {
 	participants: TournamentParticipant[];
 	matches: TournamentMatch[];
 	rounds: TournamentRound[];
+	pubGolfHoles: PubGolfHole[];
+	pubGolfScores: PubGolfScore[];
 };
 
 export type TournamentParticipant = {
@@ -147,6 +149,24 @@ export type TournamentRound = {
 
 export type TournamentRoundScore = {
 	leagueMemberId: string;
+	score?: number | null;
+};
+
+export type PubGolfHole = {
+	id: string;
+	holeNumber: number;
+	venue: string;
+	drink: string;
+	par: number;
+	holeRule?: string | null;
+	hazard?: string | null;
+	penalty?: number | null;
+	notes?: string | null;
+};
+
+export type PubGolfScore = {
+	leagueMemberId: string;
+	holeId: string;
 	score?: number | null;
 };
 
