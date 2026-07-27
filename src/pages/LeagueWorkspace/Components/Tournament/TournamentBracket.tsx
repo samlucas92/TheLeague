@@ -111,13 +111,22 @@ function buildBracketRounds(tournament: Tournament): Array<[number, Array<Tourna
 
 	const totalRounds = Math.max(grouped.length, Math.ceil(Math.log2(firstRoundMatchCount * 2)));
 	const rounds: Array<[number, Array<TournamentMatch | null>]> = [];
+	let previousDisplayMatchCount = firstRoundMatchCount % 2 === 1 && firstRoundMatchCount > 1
+		? firstRoundMatchCount + 1
+		: firstRoundMatchCount;
 	for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber += 1) {
 		const existing = grouped.find(([candidateRound]) => candidateRound === roundNumber)?.[1] ?? [];
-		const expectedMatchCount = Math.max(1, Math.ceil(firstRoundMatchCount / 2 ** (roundNumber - 1)));
+		const naturalMatchCount = roundNumber === 1
+			? previousDisplayMatchCount
+			: Math.max(1, Math.ceil(previousDisplayMatchCount / 2));
+		const expectedMatchCount = roundNumber < totalRounds && naturalMatchCount > 1 && naturalMatchCount % 2 === 1
+			? naturalMatchCount + 1
+			: naturalMatchCount;
 		rounds.push([
 			roundNumber,
 			Array.from({ length: expectedMatchCount }, (_, index) => existing[index] ?? null)
 		]);
+		previousDisplayMatchCount = expectedMatchCount;
 	}
 
 	return rounds;

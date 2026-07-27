@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { leagueService } from '../../../services/leagueService';
 import type { Tournament } from '../../../services/types';
 import { filterTournaments, TournamentDetail, TournamentList, type TournamentFilter } from '../Components/Tournament';
@@ -6,15 +7,16 @@ import { useWorkspace } from '../context';
 
 export function TournamentsPage() {
 	const { league, members, currentMember, dataVersion, openCreateTournamentModal } = useWorkspace();
+	const { tournamentId } = useParams();
+	const navigate = useNavigate();
 	const [tournaments, setTournaments] = useState<Tournament[]>([]);
-	const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
 	const [filter, setFilter] = useState<TournamentFilter>('All');
 	const [gameFilter, setGameFilter] = useState('All games');
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(true);
 	const canManage = currentMember?.role === 'Owner' || currentMember?.role === 'Admin';
 	const memberNames = useMemo(() => new Map(members.map((member) => [member.id, member.displayName])), [members]);
-	const selectedTournament = tournaments.find((tournament) => tournament.id === selectedTournamentId) ?? null;
+	const selectedTournament = tournaments.find((tournament) => tournament.id === tournamentId) ?? null;
 	const filteredTournaments = useMemo(() => filterTournaments(tournaments, filter, gameFilter), [tournaments, filter, gameFilter]);
 
 	async function refresh() {
@@ -35,7 +37,7 @@ export function TournamentsPage() {
 
 	async function deleteTournament(tournament: Tournament) {
 		await leagueService.deleteTournament(league.id, tournament.id);
-		setSelectedTournamentId(null);
+		navigate(`/leagues/${league.id}/tournaments`);
 		await refresh();
 	}
 
@@ -47,7 +49,7 @@ export function TournamentsPage() {
 				canManage={canManage}
 				currentMemberId={currentMember?.id}
 				memberNames={memberNames}
-				onBack={() => setSelectedTournamentId(null)}
+				onBack={() => navigate(`/leagues/${league.id}/tournaments`)}
 				onChanged={refresh}
 				onDelete={() => deleteTournament(selectedTournament)}
 			/>
@@ -66,7 +68,7 @@ export function TournamentsPage() {
 			onFilterChange={setFilter}
 			onGameFilterChange={setGameFilter}
 			onCreate={openCreateTournamentModal}
-			onView={(tournament) => setSelectedTournamentId(tournament.id)}
+			onView={(tournament) => navigate(`/leagues/${league.id}/tournaments/${tournament.id}`)}
 			onDelete={deleteTournament}
 		/>
 	);

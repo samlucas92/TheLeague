@@ -55,6 +55,7 @@ const router = createBrowserRouter([
 					{ path: 'points', element: <PointsFeedPage /> },
 					{ path: 'challenges', element: <ChallengesPage /> },
 					{ path: 'tournaments', element: <TournamentsPage /> },
+					{ path: 'tournaments/:tournamentId', element: <TournamentsPage /> },
 					{ path: 'submissions', element: <MySubmissionsPage /> },
 					{ path: 'members', element: <MembersPage /> },
 					{ path: 'admin', element: <AdminPage /> }
