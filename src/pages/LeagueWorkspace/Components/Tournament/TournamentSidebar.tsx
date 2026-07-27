@@ -40,7 +40,7 @@ export function NextMatchLarge({ match, memberNames, tournament, onView }: { mat
 			</div>
 			<div className="grid gap-2 text-left text-sm text-slate-600">
 				<Meta icon={<Clock size={15} />} label="Today, 18:30" />
-				<Meta icon={<Trophy size={15} />} label={tournament ? matchFormatLabel(tournament) : 'Best of 7'} />
+				<Meta icon={<Trophy size={15} />} label={tournament ? matchFormatLabel(tournament, match) : 'Best of 7'} />
 			</div>
 			<Button type="button" variant="secondary" onClick={onView}>View match</Button>
 		</div>

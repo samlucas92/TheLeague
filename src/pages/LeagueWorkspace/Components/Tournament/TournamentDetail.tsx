@@ -107,7 +107,7 @@ export function TournamentDetail({ leagueId, tournament, canManage, memberNames,
 						{activeTab === 'League' ? <LeagueStage tournament={tournament} memberNames={memberNames} onView={(match) => setSelectedMatchId(match.id)} /> : null}
 						{activeTab === 'Knockout Bracket' && tournament.format === 'SingleEliminationBracket' ? (
 							hasBracket ? (
-								<BracketPanel leagueId={leagueId} tournament={tournament} canManage={canManage} memberNames={memberNames} onChanged={onChanged} />
+								<BracketPanel leagueId={leagueId} tournament={tournament} canManage={canManage} memberNames={memberNames} onChanged={onChanged} onViewMatch={(match) => setSelectedMatchId(match.id)} />
 							) : (
 								<div className="rounded-lg border border-dashed border-slate-300 p-8 text-center">
 									<h3 className="font-bold text-ink">Knockout bracket waiting</h3>

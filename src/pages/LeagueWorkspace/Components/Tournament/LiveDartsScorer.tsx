@@ -11,7 +11,8 @@ type PendingDart = { label: string; score: number; isDouble: boolean };
 
 export function LiveDartsScorer({ leagueId, tournament, match, canManage, playerOne, playerTwo, onChanged }: { leagueId: string; tournament: Tournament; match: TournamentMatch; canManage: boolean; playerOne: string; playerTwo: string; onChanged: () => Promise<void> }) {
 	const startScore = tournament.startScore ?? (tournament.gameType === 'Darts501' ? 501 : 301);
-	const targetLegs = tournament.matchRule === 'BestOf' ? Math.floor((tournament.framesOrLegs || 1) / 2) + 1 : tournament.framesOrLegs || 1;
+	const matchLength = match.framesOrLegs ?? tournament.framesOrLegs;
+	const targetLegs = tournament.matchRule === 'BestOf' ? Math.floor((matchLength || 1) / 2) + 1 : matchLength || 1;
 	const playerOneId = match.playerOneMemberId ?? '';
 	const playerTwoId = match.playerTwoMemberId ?? '';
 	const [throwFirstMemberId, setThrowFirstMemberId] = useState(playerOneId);

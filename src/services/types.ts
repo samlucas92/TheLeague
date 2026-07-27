@@ -89,6 +89,9 @@ export type Tournament = {
 	structure: 'KnockoutOnly' | 'LeagueAndKnockout';
 	matchRule: 'FirstTo' | 'BestOf';
 	framesOrLegs: number;
+	groupSize: number;
+	qualifiersPerGroup: number;
+	roundRules: TournamentRoundRule[];
 	poolRules: string[];
 	breakRule: 'NormalBreak' | 'WinnerBreak' | 'AlternateBreak';
 	callShotRequired: boolean;
@@ -129,13 +132,20 @@ export type TournamentMatch = {
 	id: string;
 	roundNumber: number;
 	matchNumber: number;
+	groupName?: string | null;
 	playerOneMemberId?: string | null;
 	playerTwoMemberId?: string | null;
+	framesOrLegs?: number | null;
 	playerOneScore?: number | null;
 	playerTwoScore?: number | null;
 	winnerMemberId?: string | null;
 	status: 'Pending' | 'Ready' | 'Completed';
 	completedAt?: string | null;
+};
+
+export type TournamentRoundRule = {
+	roundNumber: number;
+	framesOrLegs: number;
 };
 
 export type TournamentRound = {

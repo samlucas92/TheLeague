@@ -38,8 +38,13 @@ export function CreateTournamentModal({
 	const [description, setDescription] = useState('');
 	const [notes, setNotes] = useState('');
 	const [structure, setStructure] = useState<TournamentStructure>('LeagueAndKnockout');
+	const [groupSize, setGroupSize] = useState('4');
+	const [qualifiersPerGroup, setQualifiersPerGroup] = useState('2');
 	const [poolMatchFormat, setPoolMatchFormat] = useState<PoolMatchFormat>('FirstToFrames');
 	const [poolFrames, setPoolFrames] = useState('5');
+	const [quarterFinalFrames, setQuarterFinalFrames] = useState('');
+	const [semiFinalFrames, setSemiFinalFrames] = useState('');
+	const [finalFrames, setFinalFrames] = useState('7');
 	const [breakRule, setBreakRule] = useState<PoolBreakRule>('NormalBreak');
 	const [poolRules, setPoolRules] = useState<string[]>(['8-ball']);
 	const [requireCallShot, setRequireCallShot] = useState(false);
@@ -58,6 +63,7 @@ export function CreateTournamentModal({
 	const [pubGolfHoles, setPubGolfHoles] = useState<PubGolfHoleForm[]>(defaultPubGolfHoles());
 	const [error, setError] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [reviewCanSubmit, setReviewCanSubmit] = useState(false);
 
 	const selectedMembers = useMemo(
 		() => members.filter((member) => participantMemberIds.includes(member.id)),
@@ -80,6 +86,16 @@ export function CreateTournamentModal({
 			setParticipantMemberIds(members.map((member) => member.id));
 		}
 	}, [open, members, participantMemberIds.length]);
+
+	useEffect(() => {
+		if (step !== 6) {
+			setReviewCanSubmit(false);
+			return;
+		}
+
+		const timer = window.setTimeout(() => setReviewCanSubmit(true), 700);
+		return () => window.clearTimeout(timer);
+	}, [step]);
 
 	function toggleParticipant(memberId: string) {
 		setParticipantMemberIds((current) =>
@@ -119,6 +135,15 @@ export function CreateTournamentModal({
 
 	async function submit(event: FormEvent) {
 		event.preventDefault();
+		if (step !== 6) {
+			nextStep();
+			return;
+		}
+
+		if (!reviewCanSubmit) {
+			return;
+		}
+
 		setError('');
 		setIsSubmitting(true);
 
@@ -131,6 +156,9 @@ export function CreateTournamentModal({
 				structure,
 				matchRule: poolMatchFormat === 'FirstToFrames' ? 'FirstTo' : 'BestOf',
 				framesOrLegs: gameChoice === 'PubGolf' ? pubGolfHoles.length : Number(poolFrames),
+				groupSize: Number(groupSize),
+				qualifiersPerGroup: Number(qualifiersPerGroup),
+				roundRules: buildRoundRules(quarterFinalFrames, semiFinalFrames, finalFrames),
 				poolRules: gameChoice === 'Pool' ? poolRules : [],
 				breakRule,
 				callShotRequired: requireCallShot,
@@ -239,7 +267,14 @@ export function CreateTournamentModal({
 					</div>
 				) : null}
 				{step === 2 && gameChoice !== 'PubGolf' ? (
-					<TournamentStructureStep structure={structure} setStructure={setStructure} />
+					<TournamentStructureStep
+						structure={structure}
+						setStructure={setStructure}
+						groupSize={groupSize}
+						setGroupSize={setGroupSize}
+						qualifiersPerGroup={qualifiersPerGroup}
+						setQualifiersPerGroup={setQualifiersPerGroup}
+					/>
 				) : null}
 				{step === 2 && gameChoice === 'PubGolf' ? (
 					<PubGolfCourseBuilder holes={pubGolfHoles} setHoles={setPubGolfHoles} />
@@ -253,6 +288,12 @@ export function CreateTournamentModal({
 						setPoolMatchFormat={setPoolMatchFormat}
 						poolFrames={poolFrames}
 						setPoolFrames={setPoolFrames}
+						quarterFinalFrames={quarterFinalFrames}
+						setQuarterFinalFrames={setQuarterFinalFrames}
+						semiFinalFrames={semiFinalFrames}
+						setSemiFinalFrames={setSemiFinalFrames}
+						finalFrames={finalFrames}
+						setFinalFrames={setFinalFrames}
 					/>
 				) : null}
 				{step === 4 && gameChoice === 'Pool' ? (
@@ -320,6 +361,7 @@ export function CreateTournamentModal({
 							<p><span className="font-bold text-ink">Name:</span> {name}</p>
 							<p><span className="font-bold text-ink">Game:</span> {gameChoice === 'Pool' ? 'Pool knockout' : gameChoice === 'PubGolf' ? 'Pub Golf' : formatDartsMode(dartsMode)}</p>
 							{gameChoice !== 'PubGolf' ? <p><span className="font-bold text-ink">Structure:</span> {formatStructure(structure)}</p> : null}
+							{gameChoice !== 'PubGolf' && structure === 'LeagueAndKnockout' ? <p><span className="font-bold text-ink">Groups:</span> {groupSize} per group, {qualifiersPerGroup} qualify</p> : null}
 							<p><span className="font-bold text-ink">Format:</span> {gameChoice === 'PubGolf' ? `${pubGolfHoles.length} holes` : formatMatchRule(poolMatchFormat, poolFrames, gameChoice)}</p>
 							<p><span className="font-bold text-ink">Players:</span> {selectedMembers.map((member) => member.displayName).join(', ')}</p>
 							<p><span className="font-bold text-ink">Scoring:</span> Winner {formatSignedPoints(Number(winnerPoints))}, runner-up {formatSignedPoints(Number(runnerUpPoints))}, match win {formatSignedPoints(Number(matchWinPoints))}</p>
@@ -347,7 +389,7 @@ export function CreateTournamentModal({
 					{step < 6 ? (
 						<Button type="button" icon={<ChevronRight size={16} />} onClick={nextStep}>Next</Button>
 					) : (
-						<Button type="submit" icon={<Trophy size={16} />} loading={isSubmitting} loadingLabel="Creating..." disabled={participantMemberIds.length < 2}>Create tournament</Button>
+						<Button type="submit" icon={<Trophy size={16} />} loading={isSubmitting} loadingLabel="Creating..." disabled={participantMemberIds.length < 2 || !reviewCanSubmit}>Create tournament</Button>
 					)}
 				</div>
 			</form>
@@ -527,7 +569,21 @@ function PubGolfHoleEditor({
 	);
 }
 
-function TournamentStructureStep({ structure, setStructure }: { structure: TournamentStructure; setStructure: (value: TournamentStructure) => void }) {
+function TournamentStructureStep({
+	structure,
+	setStructure,
+	groupSize,
+	setGroupSize,
+	qualifiersPerGroup,
+	setQualifiersPerGroup
+}: {
+	structure: TournamentStructure;
+	setStructure: (value: TournamentStructure) => void;
+	groupSize: string;
+	setGroupSize: (value: string) => void;
+	qualifiersPerGroup: string;
+	setQualifiersPerGroup: (value: string) => void;
+}) {
 	return (
 		<div className="grid gap-5">
 			<div>
@@ -538,6 +594,16 @@ function TournamentStructureStep({ structure, setStructure }: { structure: Tourn
 				<RadioPanel checked={structure === 'LeagueAndKnockout'} title="League + knockout" description="Everyone plays a league stage first. The knockout bracket is generated from those results." onClick={() => setStructure('LeagueAndKnockout')} />
 				<RadioPanel checked={structure === 'KnockoutOnly'} title="Knockout only" description="Single elimination bracket. Lose once and you're out." onClick={() => setStructure('KnockoutOnly')} />
 			</div>
+			{structure === 'LeagueAndKnockout' ? (
+				<div className="grid gap-4 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+					<Field label="Players per group">
+						<TextInput type="number" min="2" value={groupSize} onChange={(event) => setGroupSize(event.target.value)} />
+					</Field>
+					<Field label="Qualifiers per group">
+						<TextInput type="number" min="1" value={qualifiersPerGroup} onChange={(event) => setQualifiersPerGroup(event.target.value)} />
+					</Field>
+				</div>
+			) : null}
 		</div>
 	);
 }
@@ -549,7 +615,13 @@ function MatchFormatStep({
 	poolMatchFormat,
 	setPoolMatchFormat,
 	poolFrames,
-	setPoolFrames
+	setPoolFrames,
+	quarterFinalFrames,
+	setQuarterFinalFrames,
+	semiFinalFrames,
+	setSemiFinalFrames,
+	finalFrames,
+	setFinalFrames
 }: {
 	gameChoice: GameChoice;
 	dartsMode: DartsMode;
@@ -558,6 +630,12 @@ function MatchFormatStep({
 	setPoolMatchFormat: (value: PoolMatchFormat) => void;
 	poolFrames: string;
 	setPoolFrames: (value: string) => void;
+	quarterFinalFrames: string;
+	setQuarterFinalFrames: (value: string) => void;
+	semiFinalFrames: string;
+	setSemiFinalFrames: (value: string) => void;
+	finalFrames: string;
+	setFinalFrames: (value: string) => void;
 }) {
 	return (
 		<div className="grid gap-5">
@@ -582,6 +660,22 @@ function MatchFormatStep({
 					<Field label={gameChoice === 'Pool' ? 'Frames' : 'Legs'}>
 						<TextInput type="number" min="1" value={poolFrames} onChange={(event) => setPoolFrames(event.target.value)} />
 					</Field>
+				</div>
+			)}
+			{dartsMode === 'DartsHighestScore' && gameChoice === 'Darts' ? null : (
+				<div className="grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+					<p className="text-sm font-semibold text-slate-700">Later round overrides optional</p>
+					<div className="grid gap-3 sm:grid-cols-3">
+						<Field label="Quarter-finals">
+							<TextInput type="number" min="1" value={quarterFinalFrames} onChange={(event) => setQuarterFinalFrames(event.target.value)} placeholder={poolFrames} />
+						</Field>
+						<Field label="Semi-finals">
+							<TextInput type="number" min="1" value={semiFinalFrames} onChange={(event) => setSemiFinalFrames(event.target.value)} placeholder={poolFrames} />
+						</Field>
+						<Field label="Final">
+							<TextInput type="number" min="1" value={finalFrames} onChange={(event) => setFinalFrames(event.target.value)} placeholder={poolFrames} />
+						</Field>
+					</div>
 				</div>
 			)}
 		</div>
@@ -801,6 +895,14 @@ function formatMatchRule(format: PoolMatchFormat, amount: string, gameChoice: Ga
 function parseTimeLimit(value: string) {
 	const match = value.match(/^(\d+)/);
 	return match ? Number(match[1]) : null;
+}
+
+function buildRoundRules(quarterFinalFrames: string, semiFinalFrames: string, finalFrames: string) {
+	return [
+		quarterFinalFrames ? { roundNumber: -3, framesOrLegs: Number(quarterFinalFrames) } : null,
+		semiFinalFrames ? { roundNumber: -2, framesOrLegs: Number(semiFinalFrames) } : null,
+		finalFrames ? { roundNumber: -1, framesOrLegs: Number(finalFrames) } : null
+	].filter(Boolean) as Array<{ roundNumber: number; framesOrLegs: number }>;
 }
 
 function formatSignedPoints(points: number) {

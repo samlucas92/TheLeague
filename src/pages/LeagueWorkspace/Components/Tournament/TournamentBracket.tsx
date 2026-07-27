@@ -1,24 +1,21 @@
-import { FormEvent, useMemo, useState } from 'react';
-import { Button } from '../../../../components/Button';
-import { SelectInput, TextInput } from '../../../../components/FormField';
-import { leagueService } from '../../../../services/leagueService';
+import { useMemo } from 'react';
+import { StatusBadge } from '../../../../components/StatusBadge';
 import type { Tournament, TournamentMatch } from '../../../../services/types';
-import { bracketMatches, groupMatchesByRound, roundTitle } from './helpers';
-import { PlayerScoreRow } from './Shared';
+import { bracketMatches, groupMatchesByRound, matchFormatLabel, roundTitle } from './helpers';
 
-export function BracketPanel({ leagueId, tournament, canManage, memberNames, onChanged }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onChanged: () => Promise<void> }) {
+export function BracketPanel({ tournament, memberNames, onViewMatch }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onChanged: () => Promise<void>; onViewMatch?: (match: TournamentMatch) => void }) {
 	const rounds = useMemo(() => groupMatchesByRound(bracketMatches(tournament)), [tournament]);
 	return (
 		<div className="overflow-x-auto rounded-lg border border-slate-200 p-4">
-			<div className="grid min-w-[720px] gap-4" style={{ gridTemplateColumns: `repeat(${Math.max(rounds.length, 1)}, minmax(10rem, 1fr))` }}>
+			<div className="grid min-w-[760px] gap-8" style={{ gridTemplateColumns: `repeat(${Math.max(rounds.length, 1)}, minmax(12rem, 1fr))` }}>
 				{rounds.map(([roundNumber, matches]) => (
 					<div key={roundNumber} className="grid content-start gap-3">
 						<div>
 							<h3 className="text-sm font-bold text-ink">{roundTitle(roundNumber, rounds.length)}</h3>
-							<p className="text-xs text-slate-500">Best of 7</p>
+							<p className="text-xs text-slate-500">{matches[0] ? matchFormatLabel(tournament, matches[0]) : matchFormatLabel(tournament)}</p>
 						</div>
 						{matches.map((match) => (
-							<BracketMatch key={match.id} leagueId={leagueId} tournament={tournament} match={match} canManage={canManage} memberNames={memberNames} onChanged={onChanged} />
+							<BracketMatch key={match.id} tournament={tournament} match={match} memberNames={memberNames} onViewMatch={onViewMatch} />
 						))}
 					</div>
 				))}
@@ -32,41 +29,30 @@ export function BracketPanel({ leagueId, tournament, canManage, memberNames, onC
 	);
 }
 
-function BracketMatch({ leagueId, tournament, match, canManage, memberNames, onChanged }: { leagueId: string; tournament: Tournament; match: TournamentMatch; canManage: boolean; memberNames: Map<string, string>; onChanged: () => Promise<void> }) {
-	const [winnerMemberId, setWinnerMemberId] = useState(match.playerOneMemberId ?? '');
-	const [playerOneScore, setPlayerOneScore] = useState(match.playerOneScore?.toString() ?? '');
-	const [playerTwoScore, setPlayerTwoScore] = useState(match.playerTwoScore?.toString() ?? '');
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const players = [match.playerOneMemberId, match.playerTwoMemberId].filter(Boolean) as string[];
-
-	async function submit(event: FormEvent) {
-		event.preventDefault();
-		setIsSubmitting(true);
-		await leagueService.completeTournamentMatch(leagueId, tournament.id, match.id, {
-			winnerMemberId,
-			playerOneScore: playerOneScore ? Number(playerOneScore) : null,
-			playerTwoScore: playerTwoScore ? Number(playerTwoScore) : null
-		});
-		await onChanged();
-		setIsSubmitting(false);
-	}
-
+function BracketMatch({ tournament, match, memberNames, onViewMatch }: { tournament: Tournament; match: TournamentMatch; memberNames: Map<string, string>; onViewMatch?: (match: TournamentMatch) => void }) {
+	const canOpen = Boolean(onViewMatch && match.playerOneMemberId && match.playerTwoMemberId);
 	return (
-		<div className="rounded-md border border-slate-200 bg-white text-sm shadow-sm">
-			<PlayerScoreRow name={memberNames.get(match.playerOneMemberId ?? '') ?? 'TBD'} score={match.playerOneScore} won={match.winnerMemberId === match.playerOneMemberId} />
-			<PlayerScoreRow name={memberNames.get(match.playerTwoMemberId ?? '') ?? 'TBD'} score={match.playerTwoScore} won={match.winnerMemberId === match.playerTwoMemberId} muted={!match.playerTwoMemberId} />
-			{canManage && match.status !== 'Completed' && players.length > 1 ? (
-				<form className="grid gap-2 border-t border-slate-100 p-2" onSubmit={submit}>
-					<SelectInput value={winnerMemberId} onChange={(event) => setWinnerMemberId(event.target.value)}>
-						{players.map((playerId) => <option key={playerId} value={playerId}>{memberNames.get(playerId)}</option>)}
-					</SelectInput>
-					<div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-						<TextInput type="number" value={playerOneScore} onChange={(event) => setPlayerOneScore(event.target.value)} placeholder="P1" />
-						<TextInput type="number" value={playerTwoScore} onChange={(event) => setPlayerTwoScore(event.target.value)} placeholder="P2" />
-						<Button type="submit" loading={isSubmitting} loadingLabel="Saving...">Save</Button>
-					</div>
-				</form>
-			) : null}
+		<button
+			type="button"
+			disabled={!canOpen}
+			className={`relative grid gap-2 rounded-md border border-slate-200 bg-white p-2 text-left text-sm shadow-sm after:absolute after:left-full after:top-1/2 after:hidden after:h-px after:w-8 after:bg-slate-200 last:after:hidden md:after:block ${canOpen ? 'hover:border-ink/30' : 'cursor-default'}`}
+			onClick={() => canOpen && onViewMatch?.(match)}
+		>
+			<div className="flex items-center justify-between gap-2">
+				<span className="text-xs font-semibold text-slate-500">{match.groupName ?? matchFormatLabel(tournament, match)}</span>
+				<StatusBadge label={match.status} tone={match.status === 'Completed' ? 'good' : 'neutral'} />
+			</div>
+			<BracketPlayer name={memberNames.get(match.playerOneMemberId ?? '') ?? 'TBD'} score={match.playerOneScore} won={match.winnerMemberId === match.playerOneMemberId} />
+			<BracketPlayer name={memberNames.get(match.playerTwoMemberId ?? '') ?? 'TBD'} score={match.playerTwoScore} won={match.winnerMemberId === match.playerTwoMemberId} muted={!match.playerTwoMemberId} />
+		</button>
+	);
+}
+
+function BracketPlayer({ name, score, won, muted = false }: { name: string; score?: number | null; won: boolean; muted?: boolean }) {
+	return (
+		<div className={`flex items-center justify-between gap-2 rounded px-2 py-1 ${won ? 'bg-emerald-50 font-bold text-emerald-900' : muted ? 'text-slate-400' : 'text-slate-700'}`}>
+			<span>{name}</span>
+			<span className="font-bold">{score ?? '-'}</span>
 		</div>
 	);
 }

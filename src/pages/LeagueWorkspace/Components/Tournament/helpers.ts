@@ -92,10 +92,10 @@ export function isDartsTournament(tournament: Tournament) {
 	return tournament.gameType === 'Darts301' || tournament.gameType === 'Darts501' || tournament.gameType === 'DartsHighestScore';
 }
 
-export function matchFormatLabel(tournament: Tournament) {
+export function matchFormatLabel(tournament: Tournament, match?: TournamentMatch | null) {
 	const unit = isDartsTournament(tournament) ? 'legs' : 'frames';
 	const prefix = tournament.matchRule === 'BestOf' ? 'Best of' : 'First to';
-	return `${prefix} ${tournament.framesOrLegs || 5} ${unit}`;
+	return `${prefix} ${(match?.framesOrLegs ?? tournament.framesOrLegs) || 5} ${unit}`;
 }
 
 export function gameRulesSummary(tournament: Tournament) {

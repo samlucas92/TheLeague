@@ -51,7 +51,7 @@ export function RecentResults({ matches, memberNames, onViewAll }: { matches: To
 
 export function LeagueStage({ tournament, memberNames, onView }: { tournament: Tournament; memberNames: Map<string, string>; onView: (match: TournamentMatch) => void }) {
 	const matches = leagueMatches(tournament);
-	const standings = buildLeagueStandings(tournament, matches);
+	const groups = buildLeagueGroups(tournament, matches);
 
 	return (
 		<div className="grid gap-4">
@@ -59,42 +59,45 @@ export function LeagueStage({ tournament, memberNames, onView }: { tournament: T
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<h3 className="font-bold text-ink">League stage</h3>
-						<p className="mt-1 text-sm text-slate-600">Everyone plays once. The knockout bracket is generated from the league standings when all league matches are complete.</p>
+						<p className="mt-1 text-sm text-slate-600">Players are split into groups. The top {tournament.qualifiersPerGroup} from each group progress to the knockout bracket.</p>
 					</div>
 					<StatusBadge label={`${matches.filter((match) => match.status === 'Completed').length} / ${matches.length} matches`} tone={matches.every((match) => match.status === 'Completed') && matches.length > 0 ? 'good' : 'neutral'} />
 				</div>
-				<div className="mt-4 overflow-x-auto">
-					<table className="w-full min-w-[34rem] text-left text-sm">
-						<thead className="text-xs uppercase text-slate-500">
-							<tr>
-								<th className="py-2">Pos</th>
-								<th className="py-2">Player</th>
-								<th className="py-2 text-right">Played</th>
-								<th className="py-2 text-right">Wins</th>
-								<th className="py-2 text-right">For</th>
-								<th className="py-2 text-right">Against</th>
-								<th className="py-2 text-right">Diff</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-slate-100">
-							{standings.map((row, index) => (
-								<tr key={row.memberId}>
-									<td className="py-2 font-semibold text-slate-500">{index + 1}</td>
-									<td className="py-2">
-										<span className="inline-flex items-center gap-2 font-semibold text-ink">
-											<Avatar name={row.name} />
-											{row.name}
-										</span>
-									</td>
-									<td className="py-2 text-right">{row.played}</td>
-									<td className="py-2 text-right">{row.wins}</td>
-									<td className="py-2 text-right">{row.pointsFor}</td>
-									<td className="py-2 text-right">{row.pointsAgainst}</td>
-									<td className="py-2 text-right">{formatDiff(row.pointsFor - row.pointsAgainst)}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
+				<div className="mt-4 grid gap-4 lg:grid-cols-2">
+					{groups.map(([groupName, standings]) => (
+						<div key={groupName} className="overflow-x-auto rounded-md border border-slate-200">
+							<h4 className="border-b border-slate-100 px-3 py-2 font-bold text-ink">{groupName}</h4>
+							<table className="w-full min-w-[30rem] text-left text-sm">
+								<thead className="bg-slate-50 text-xs uppercase text-slate-500">
+									<tr>
+										<th className="p-2">Pos</th>
+										<th className="p-2">Player</th>
+										<th className="p-2 text-right">P</th>
+										<th className="p-2 text-right">W</th>
+										<th className="p-2 text-right">For</th>
+										<th className="p-2 text-right">Diff</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-slate-100">
+									{standings.map((row, index) => (
+										<tr key={row.memberId} className={index < tournament.qualifiersPerGroup ? 'bg-emerald-50/60' : ''}>
+											<td className="p-2 font-semibold text-slate-500">{index + 1}</td>
+											<td className="p-2">
+												<span className="inline-flex items-center gap-2 font-semibold text-ink">
+													<Avatar name={row.name} />
+													{row.name}
+												</span>
+											</td>
+											<td className="p-2 text-right">{row.played}</td>
+											<td className="p-2 text-right">{row.wins}</td>
+											<td className="p-2 text-right">{row.pointsFor}</td>
+											<td className="p-2 text-right">{formatDiff(row.pointsFor - row.pointsAgainst)}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					))}
 				</div>
 			</div>
 			<MatchesList matches={matches} memberNames={memberNames} onView={onView} />
@@ -121,8 +124,21 @@ export function MatchesList({ matches, memberNames, onView }: { matches: Tournam
 	);
 }
 
-function buildLeagueStandings(tournament: Tournament, matches: TournamentMatch[]) {
-	const standings = new Map(tournament.participants.map((participant) => [participant.leagueMemberId, {
+function buildLeagueGroups(tournament: Tournament, matches: TournamentMatch[]) {
+	const groupNames = [...new Set(matches.map((match) => match.groupName ?? 'Group'))];
+	const rowsByGroup = new Map<string, Map<string, {
+		memberId: string;
+		name: string;
+		seed: number;
+		played: number;
+		wins: number;
+		pointsFor: number;
+		pointsAgainst: number;
+	}>>();
+
+	for (const groupName of groupNames) {
+		const memberIds = new Set(matches.filter((match) => (match.groupName ?? 'Group') === groupName).flatMap((match) => [match.playerOneMemberId, match.playerTwoMemberId]).filter(Boolean) as string[]);
+		rowsByGroup.set(groupName, new Map(tournament.participants.filter((participant) => memberIds.has(participant.leagueMemberId)).map((participant) => [participant.leagueMemberId, {
 		memberId: participant.leagueMemberId,
 		name: participant.displayName,
 		seed: participant.seed,
@@ -130,11 +146,13 @@ function buildLeagueStandings(tournament: Tournament, matches: TournamentMatch[]
 		wins: 0,
 		pointsFor: 0,
 		pointsAgainst: 0
-	}]));
+	}])));
+	}
 
 	for (const match of matches.filter((candidate) => candidate.status === 'Completed')) {
-		const playerOne = match.playerOneMemberId ? standings.get(match.playerOneMemberId) : null;
-		const playerTwo = match.playerTwoMemberId ? standings.get(match.playerTwoMemberId) : null;
+		const standings = rowsByGroup.get(match.groupName ?? 'Group');
+		const playerOne = match.playerOneMemberId ? standings?.get(match.playerOneMemberId) : null;
+		const playerTwo = match.playerTwoMemberId ? standings?.get(match.playerTwoMemberId) : null;
 		if (!playerOne || !playerTwo) {
 			continue;
 		}
@@ -153,16 +171,29 @@ function buildLeagueStandings(tournament: Tournament, matches: TournamentMatch[]
 		}
 	}
 
-	return [...standings.values()].sort((left, right) =>
+	return [...rowsByGroup.entries()].map(([groupName, standings]) => [groupName, [...standings.values()].sort((left, right) =>
 		right.wins - left.wins ||
 		(right.pointsFor - right.pointsAgainst) - (left.pointsFor - left.pointsAgainst) ||
 		right.pointsFor - left.pointsFor ||
 		left.seed - right.seed
-	);
+	)] as const);
 }
 
 function formatDiff(value: number) {
 	return value > 0 ? `+${value}` : value.toString();
+}
+
+function roundRuleLabel(roundNumber: number) {
+	if (roundNumber === -1) {
+		return 'Final length';
+	}
+	if (roundNumber === -2) {
+		return 'Semi-final length';
+	}
+	if (roundNumber === -3) {
+		return 'Quarter-final length';
+	}
+	return `Round ${roundNumber} length`;
 }
 
 export function PlayersTable({ tournament }: { tournament: Tournament }) {
@@ -186,6 +217,8 @@ export function TournamentDetailsPanel({ tournament }: { tournament: Tournament 
 	const rules = [
 		`Structure: ${structureLabel(tournament)}`,
 		`Match format: ${matchFormatLabel(tournament)}`,
+		tournament.structure === 'LeagueAndKnockout' ? `Groups: ${tournament.groupSize} players per group, ${tournament.qualifiersPerGroup} qualify` : null,
+		...tournament.roundRules.map((rule) => `${roundRuleLabel(rule.roundNumber)}: ${rule.framesOrLegs}`),
 		tournament.gameType === 'Pool' ? `Break rule: ${breakRuleLabel(tournament)}` : null,
 		tournament.gameType === 'Pool' && tournament.callShotRequired ? 'Call shot required' : null,
 		tournament.gameType === 'Pool' && tournament.allowRerack ? 'Re-rack allowed' : null,

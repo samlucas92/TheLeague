@@ -57,7 +57,7 @@ function MatchScoreHeader({ tournament, match, playerOne, playerTwo }: { tournam
 			<div><Avatar name={playerOne} large /><p className="mt-2 font-bold text-ink">{playerOne}</p></div>
 			<div>
 				<p className="text-3xl font-bold text-ink">{match.playerOneScore ?? 0} - {match.playerTwoScore ?? 0}</p>
-				<p className="mt-1 text-sm font-semibold text-slate-500">{matchFormatLabel(tournament)}</p>
+				<p className="mt-1 text-sm font-semibold text-slate-500">{matchFormatLabel(tournament, match)}</p>
 			</div>
 			<div><Avatar name={playerTwo} large tone="green" /><p className="mt-2 font-bold text-ink">{playerTwo}</p></div>
 		</div>
@@ -97,9 +97,9 @@ function SimpleMatchScoreForm({ leagueId, tournament, match, canManage, playerOn
 			<div className="rounded-lg border border-slate-200 p-4 text-left">
 				<h3 className="font-bold text-ink">Match info</h3>
 				<div className="mt-3 grid gap-2 text-sm text-slate-600">
-					<p>Round {match.roundNumber}</p>
+					<p>{match.roundNumber === 0 ? match.groupName ?? 'League' : `Round ${match.roundNumber}`}</p>
 					<p>{formatGameType(tournament)}</p>
-					<p>{matchFormatLabel(tournament)}</p>
+					<p>{matchFormatLabel(tournament, match)}</p>
 				</div>
 			</div>
 			<form className="grid gap-3 rounded-lg border border-slate-200 p-4 text-left" onSubmit={submit}>
