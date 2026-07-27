@@ -4,25 +4,35 @@ import { bracketMatches, groupMatchesByRound, matchFormatLabel, roundTitle } fro
 
 export function BracketPanel({ tournament, memberNames, onViewMatch }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onChanged: () => Promise<void>; onViewMatch?: (match: TournamentMatch) => void }) {
 	const rounds = useMemo(() => buildBracketRounds(tournament), [tournament]);
+	const firstRoundMatchCount = rounds[0]?.[1].length ?? 0;
+	const bracketHeight = firstRoundMatchCount > 0 ? ((firstRoundMatchCount - 1) * BracketLayout.matchStepRem) + BracketLayout.matchHeightRem : BracketLayout.matchHeightRem;
+
 	return (
 		<div className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-4">
-			<div className="grid min-w-[820px] items-start gap-12" style={{ gridTemplateColumns: `repeat(${Math.max(rounds.length, 1)}, minmax(13rem, 1fr))` }}>
+			<div className="grid min-w-[920px] items-start gap-16" style={{ gridTemplateColumns: `repeat(${Math.max(rounds.length, 1)}, minmax(13rem, 1fr))` }}>
 				{rounds.map(([roundNumber, matches], roundIndex) => (
 					<div
 						key={roundNumber}
-						className="grid content-start"
-						style={{
-							gap: `${Math.min(7, Math.max(1.5, 1.5 * 2 ** roundIndex))}rem`,
-							paddingTop: roundIndex === 0 ? 0 : `${Math.min(6, 1.75 * 2 ** (roundIndex - 1))}rem`
-						}}
+						className="grid content-start gap-4"
 					>
 						<div>
 							<h3 className="text-sm font-bold text-ink">{roundTitle(roundNumber, rounds.length)}</h3>
-							<p className="text-xs text-slate-500">{matches[0] ? matchFormatLabel(tournament, matches[0]) : matchFormatLabel(tournament)}</p>
+							<p className="text-xs text-slate-500">{matches.find(Boolean) ? matchFormatLabel(tournament, matches.find(Boolean)) : matchFormatLabel(tournament)}</p>
 						</div>
-						{matches.map((match, matchIndex) => (
-							<BracketMatch key={match?.id ?? `${roundNumber}-${matchIndex}`} tournament={tournament} match={match} memberNames={memberNames} isFinalRound={roundIndex === rounds.length - 1} onViewMatch={onViewMatch} />
-						))}
+						<div className="relative" style={{ height: `${bracketHeight}rem` }}>
+							{matches.map((match, matchIndex) => (
+								<BracketMatch
+									key={match?.id ?? `${roundNumber}-${matchIndex}`}
+									tournament={tournament}
+									match={match}
+									memberNames={memberNames}
+									roundIndex={roundIndex}
+									matchIndex={matchIndex}
+									isFinalRound={roundIndex === rounds.length - 1}
+									onViewMatch={onViewMatch}
+								/>
+							))}
+						</div>
 					</div>
 				))}
 			</div>
@@ -35,13 +45,20 @@ export function BracketPanel({ tournament, memberNames, onViewMatch }: { leagueI
 	);
 }
 
-function BracketMatch({ tournament, match, memberNames, isFinalRound, onViewMatch }: { tournament: Tournament; match: TournamentMatch | null; memberNames: Map<string, string>; isFinalRound: boolean; onViewMatch?: (match: TournamentMatch) => void }) {
+const BracketLayout = {
+	matchHeightRem: 4.5,
+	matchStepRem: 6.5
+} as const;
+
+function BracketMatch({ tournament, match, memberNames, roundIndex, matchIndex, isFinalRound, onViewMatch }: { tournament: Tournament; match: TournamentMatch | null; memberNames: Map<string, string>; roundIndex: number; matchIndex: number; isFinalRound: boolean; onViewMatch?: (match: TournamentMatch) => void }) {
 	const canOpen = Boolean(match && onViewMatch && match.playerOneMemberId && match.playerTwoMemberId);
+	const top = (((matchIndex + 0.5) * 2 ** roundIndex) - 0.5) * BracketLayout.matchStepRem;
 	return (
 		<button
 			type="button"
 			disabled={!canOpen}
-			className={`relative grid gap-0 overflow-visible rounded-md border border-slate-200 bg-white text-left text-sm shadow-sm ${isFinalRound ? '' : 'after:absolute after:left-full after:top-1/2 after:hidden after:h-px after:w-12 after:bg-slate-300 md:after:block'} ${canOpen ? 'hover:border-ink/30' : 'cursor-default'}`}
+			className={`absolute left-0 right-0 grid gap-0 overflow-visible rounded-md border border-slate-200 bg-white text-left text-sm shadow-sm ${roundIndex === 0 ? '' : 'before:absolute before:right-full before:top-1/2 before:hidden before:h-px before:w-16 before:bg-slate-300 md:before:block'} ${isFinalRound ? '' : 'after:absolute after:left-full after:top-1/2 after:hidden after:h-px after:w-16 after:bg-slate-300 md:after:block'} ${canOpen ? 'hover:border-ink/30' : 'cursor-default'}`}
+			style={{ top: `${top}rem`, height: `${BracketLayout.matchHeightRem}rem` }}
 			onClick={() => match && canOpen && onViewMatch?.(match)}
 		>
 			<BracketPlayer name={memberNames.get(match?.playerOneMemberId ?? '') ?? 'TBD'} score={match?.playerOneScore} won={Boolean(match?.winnerMemberId && match.winnerMemberId === match.playerOneMemberId)} muted={!match?.playerOneMemberId} />
