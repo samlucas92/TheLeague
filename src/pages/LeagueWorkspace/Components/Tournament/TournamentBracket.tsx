@@ -1,21 +1,27 @@
 import { useMemo } from 'react';
-import { StatusBadge } from '../../../../components/StatusBadge';
 import type { Tournament, TournamentMatch } from '../../../../services/types';
 import { bracketMatches, groupMatchesByRound, matchFormatLabel, roundTitle } from './helpers';
 
 export function BracketPanel({ tournament, memberNames, onViewMatch }: { leagueId: string; tournament: Tournament; canManage: boolean; memberNames: Map<string, string>; onChanged: () => Promise<void>; onViewMatch?: (match: TournamentMatch) => void }) {
-	const rounds = useMemo(() => groupMatchesByRound(bracketMatches(tournament)), [tournament]);
+	const rounds = useMemo(() => buildBracketRounds(tournament), [tournament]);
 	return (
-		<div className="overflow-x-auto rounded-lg border border-slate-200 p-4">
-			<div className="grid min-w-[760px] gap-8" style={{ gridTemplateColumns: `repeat(${Math.max(rounds.length, 1)}, minmax(12rem, 1fr))` }}>
-				{rounds.map(([roundNumber, matches]) => (
-					<div key={roundNumber} className="grid content-start gap-3">
+		<div className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-4">
+			<div className="grid min-w-[820px] items-start gap-12" style={{ gridTemplateColumns: `repeat(${Math.max(rounds.length, 1)}, minmax(13rem, 1fr))` }}>
+				{rounds.map(([roundNumber, matches], roundIndex) => (
+					<div
+						key={roundNumber}
+						className="grid content-start"
+						style={{
+							gap: `${Math.min(7, Math.max(1.5, 1.5 * 2 ** roundIndex))}rem`,
+							paddingTop: roundIndex === 0 ? 0 : `${Math.min(6, 1.75 * 2 ** (roundIndex - 1))}rem`
+						}}
+					>
 						<div>
 							<h3 className="text-sm font-bold text-ink">{roundTitle(roundNumber, rounds.length)}</h3>
 							<p className="text-xs text-slate-500">{matches[0] ? matchFormatLabel(tournament, matches[0]) : matchFormatLabel(tournament)}</p>
 						</div>
-						{matches.map((match) => (
-							<BracketMatch key={match.id} tournament={tournament} match={match} memberNames={memberNames} onViewMatch={onViewMatch} />
+						{matches.map((match, matchIndex) => (
+							<BracketMatch key={match?.id ?? `${roundNumber}-${matchIndex}`} tournament={tournament} match={match} memberNames={memberNames} isFinalRound={roundIndex === rounds.length - 1} onViewMatch={onViewMatch} />
 						))}
 					</div>
 				))}
@@ -29,30 +35,53 @@ export function BracketPanel({ tournament, memberNames, onViewMatch }: { leagueI
 	);
 }
 
-function BracketMatch({ tournament, match, memberNames, onViewMatch }: { tournament: Tournament; match: TournamentMatch; memberNames: Map<string, string>; onViewMatch?: (match: TournamentMatch) => void }) {
-	const canOpen = Boolean(onViewMatch && match.playerOneMemberId && match.playerTwoMemberId);
+function BracketMatch({ tournament, match, memberNames, isFinalRound, onViewMatch }: { tournament: Tournament; match: TournamentMatch | null; memberNames: Map<string, string>; isFinalRound: boolean; onViewMatch?: (match: TournamentMatch) => void }) {
+	const canOpen = Boolean(match && onViewMatch && match.playerOneMemberId && match.playerTwoMemberId);
 	return (
 		<button
 			type="button"
 			disabled={!canOpen}
-			className={`relative grid gap-2 rounded-md border border-slate-200 bg-white p-2 text-left text-sm shadow-sm after:absolute after:left-full after:top-1/2 after:hidden after:h-px after:w-8 after:bg-slate-200 last:after:hidden md:after:block ${canOpen ? 'hover:border-ink/30' : 'cursor-default'}`}
-			onClick={() => canOpen && onViewMatch?.(match)}
+			className={`relative grid gap-0 overflow-visible rounded-md border border-slate-200 bg-white text-left text-sm shadow-sm ${isFinalRound ? '' : 'after:absolute after:left-full after:top-1/2 after:hidden after:h-px after:w-12 after:bg-slate-300 md:after:block'} ${canOpen ? 'hover:border-ink/30' : 'cursor-default'}`}
+			onClick={() => match && canOpen && onViewMatch?.(match)}
 		>
-			<div className="flex items-center justify-between gap-2">
-				<span className="text-xs font-semibold text-slate-500">{match.groupName ?? matchFormatLabel(tournament, match)}</span>
-				<StatusBadge label={match.status} tone={match.status === 'Completed' ? 'good' : 'neutral'} />
-			</div>
-			<BracketPlayer name={memberNames.get(match.playerOneMemberId ?? '') ?? 'TBD'} score={match.playerOneScore} won={match.winnerMemberId === match.playerOneMemberId} />
-			<BracketPlayer name={memberNames.get(match.playerTwoMemberId ?? '') ?? 'TBD'} score={match.playerTwoScore} won={match.winnerMemberId === match.playerTwoMemberId} muted={!match.playerTwoMemberId} />
+			<BracketPlayer name={memberNames.get(match?.playerOneMemberId ?? '') ?? 'TBD'} score={match?.playerOneScore} won={Boolean(match?.winnerMemberId && match.winnerMemberId === match.playerOneMemberId)} muted={!match?.playerOneMemberId} />
+			<BracketPlayer name={memberNames.get(match?.playerTwoMemberId ?? '') ?? 'TBD'} score={match?.playerTwoScore} won={Boolean(match?.winnerMemberId && match.winnerMemberId === match.playerTwoMemberId)} muted={!match?.playerTwoMemberId} />
+			<span className="sr-only">{match ? `${match.groupName ?? matchFormatLabel(tournament, match)} ${match.status}` : 'Future bracket match'}</span>
 		</button>
 	);
 }
 
 function BracketPlayer({ name, score, won, muted = false }: { name: string; score?: number | null; won: boolean; muted?: boolean }) {
 	return (
-		<div className={`flex items-center justify-between gap-2 rounded px-2 py-1 ${won ? 'bg-emerald-50 font-bold text-emerald-900' : muted ? 'text-slate-400' : 'text-slate-700'}`}>
-			<span>{name}</span>
+		<div className={`flex min-h-9 items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 last:border-b-0 ${won ? 'bg-emerald-50 font-bold text-emerald-900' : muted ? 'text-slate-400' : 'text-slate-700'}`}>
+			<span className="truncate">{name}</span>
 			<span className="font-bold">{score ?? '-'}</span>
 		</div>
 	);
+}
+
+function buildBracketRounds(tournament: Tournament): Array<[number, Array<TournamentMatch | null>]> {
+	const matches = bracketMatches(tournament);
+	const grouped = groupMatchesByRound(matches).map(([roundNumber, roundMatches]) => [
+		roundNumber,
+		[...roundMatches].sort((left, right) => left.matchNumber - right.matchNumber)
+	] as [number, TournamentMatch[]]);
+
+	const firstRoundMatchCount = grouped[0]?.[1].length ?? 0;
+	if (firstRoundMatchCount === 0) {
+		return [];
+	}
+
+	const totalRounds = Math.max(grouped.length, Math.ceil(Math.log2(firstRoundMatchCount * 2)));
+	const rounds: Array<[number, Array<TournamentMatch | null>]> = [];
+	for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber += 1) {
+		const existing = grouped.find(([candidateRound]) => candidateRound === roundNumber)?.[1] ?? [];
+		const expectedMatchCount = Math.max(1, Math.ceil(firstRoundMatchCount / 2 ** (roundNumber - 1)));
+		rounds.push([
+			roundNumber,
+			Array.from({ length: expectedMatchCount }, (_, index) => existing[index] ?? null)
+		]);
+	}
+
+	return rounds;
 }
