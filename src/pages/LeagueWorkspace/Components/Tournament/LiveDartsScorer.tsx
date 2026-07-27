@@ -46,6 +46,11 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	const activePlayerName = activePlayerId === playerTwoId ? playerTwo : activePlayerId === playerOneId ? playerOne : 'Choose who throws first';
 	const activeRemaining = activePlayerId === playerTwoId ? playerTwoRemaining : playerOneRemaining;
 	const matchComplete = match.status === 'Completed' || playerOneLegs >= targetLegs || playerTwoLegs >= targetLegs;
+	const currentTurnScore = pendingDarts.reduce((total, dart) => total + dart.score, 0);
+	const checkoutRemaining = gameStarted ? activeRemaining - currentTurnScore : null;
+	const checkoutRoute = checkoutRemaining && checkoutRemaining > 1
+		? getCheckoutRoute(checkoutRemaining, tournament.doubleOutRequired, 3 - pendingDarts.length)
+		: null;
 
 	function startGame() {
 		setActivePlayerId(throwFirstMemberId);
@@ -207,7 +212,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	return (
 		<div className="grid gap-4 border-t border-slate-100 pt-4">
 			<div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_18rem_1fr] lg:gap-4">
-				<DartsPlayerPanel name={playerOne} score={startScore} remaining={playerOneRemaining} active={gameStarted && activePlayerId === playerOneId} legs={playerOneLegs} lastScore={playerOneLastScore} dartsThisLeg={playerOneDartsThisLeg} />
+				<DartsPlayerPanel name={playerOne} remaining={playerOneRemaining} active={gameStarted && activePlayerId === playerOneId} lastScore={playerOneLastScore} dartsThisLeg={playerOneDartsThisLeg} />
 				<div className="order-3 col-span-2 rounded-lg border border-slate-200 p-3 lg:order-none lg:col-span-1 lg:p-4">
 					<p className="text-xs font-bold uppercase text-slate-500">Legs</p>
 					<p className="mt-1 text-3xl font-bold text-ink lg:text-4xl">{playerOneLegs} - {playerTwoLegs}</p>
@@ -217,7 +222,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 						<p>{tournament.doubleOutRequired ? 'Double out required' : 'Double out not required'}</p>
 					</div>
 				</div>
-				<DartsPlayerPanel name={playerTwo} score={startScore} remaining={playerTwoRemaining} active={gameStarted && activePlayerId === playerTwoId} legs={playerTwoLegs} lastScore={playerTwoLastScore} dartsThisLeg={playerTwoDartsThisLeg} tone="green" />
+				<DartsPlayerPanel name={playerTwo} remaining={playerTwoRemaining} active={gameStarted && activePlayerId === playerTwoId} lastScore={playerTwoLastScore} dartsThisLeg={playerTwoDartsThisLeg} tone="green" />
 			</div>
 			{gameStarted || match.status === 'Completed' ? null : (
 				<div className="rounded-lg border border-slate-200 p-4 text-left">
@@ -233,12 +238,17 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 				<div>
 					<h3 className="font-bold text-ink">Scorer</h3>
 					<p className="mt-1 text-sm text-slate-600">{gameStarted ? `${activePlayerName} to throw.` : 'Choose who throws first, then start the game.'}</p>
+					{checkoutRoute ? (
+						<p className="mt-2 inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-700">
+							Checkout: {checkoutRoute}
+						</p>
+					) : null}
 				</div>
 				<div className="grid gap-3 rounded-md bg-slate-50 p-3">
 					<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
 						<div className="flex items-center justify-between gap-3 text-xs font-bold uppercase text-slate-500">
 							<span>Darts this turn</span>
-							<span>{pendingDarts.reduce((total, dart) => total + dart.score, 0)} scored</span>
+							<span>{currentTurnScore} scored</span>
 						</div>
 						<div className="grid grid-cols-3 gap-2">
 							{[0, 1, 2].map((index) => {
@@ -314,7 +324,59 @@ function formatDartButtonLabel(number: number, multiplier: DartMultiplier) {
 	);
 }
 
-function DartsPlayerPanel({ name, remaining, active, legs, lastScore, dartsThisLeg, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; legs: number; lastScore: number; dartsThisLeg: number; tone?: 'blue' | 'green' }) {
+function getCheckoutRoute(target: number, mustFinishOnDouble: boolean, dartsAvailable: number) {
+	if (target < 2 || target > 180 || dartsAvailable < 1) {
+		return null;
+	}
+
+	const darts = getCheckoutDarts();
+	for (const first of darts) {
+		if (first.score === target && (!mustFinishOnDouble || first.isDouble)) {
+			return first.label;
+		}
+	}
+
+	if (dartsAvailable < 2) {
+		return null;
+	}
+
+	for (const first of darts) {
+		for (const second of darts) {
+			if (first.score + second.score === target && (!mustFinishOnDouble || second.isDouble)) {
+				return `${first.label}, ${second.label}`;
+			}
+		}
+	}
+
+	if (dartsAvailable < 3) {
+		return null;
+	}
+
+	for (const first of darts) {
+		for (const second of darts) {
+			for (const third of darts) {
+				if (first.score + second.score + third.score === target && (!mustFinishOnDouble || third.isDouble)) {
+					return `${first.label}, ${second.label}, ${third.label}`;
+				}
+			}
+		}
+	}
+
+	return null;
+}
+
+function getCheckoutDarts(): PendingDart[] {
+	const numbers = Array.from({ length: 20 }, (_, index) => 20 - index);
+	return [
+		...numbers.map((number) => ({ label: `T${number}`, score: number * 3, isDouble: false })),
+		{ label: 'Bull', score: 50, isDouble: true },
+		...numbers.map((number) => ({ label: `D${number}`, score: number * 2, isDouble: true })),
+		{ label: '25', score: 25, isDouble: false },
+		...numbers.map((number) => ({ label: `${number}`, score: number, isDouble: false }))
+	];
+}
+
+function DartsPlayerPanel({ name, remaining, active, lastScore, dartsThisLeg, tone = 'blue' }: { name: string; remaining: number; active: boolean; lastScore: number; dartsThisLeg: number; tone?: 'blue' | 'green' }) {
 	return (
 		<div className={active ? 'min-w-0 rounded-lg border border-blue-500 bg-blue-50/30 p-2 text-center sm:p-4' : 'min-w-0 rounded-lg border border-slate-200 p-2 text-center sm:p-4'}>
 			<div className="flex items-center justify-center gap-2">
@@ -323,8 +385,7 @@ function DartsPlayerPanel({ name, remaining, active, legs, lastScore, dartsThisL
 			</div>
 			<p className="mt-2 text-xs font-bold uppercase text-slate-500">Current</p>
 			<p className="text-3xl font-bold text-ink sm:text-4xl">{remaining}</p>
-			<div className="mt-2 grid gap-1 text-xs font-semibold text-slate-500 sm:grid-cols-3">
-				<span>{legs} legs</span>
+			<div className="mt-2 grid grid-cols-2 gap-1 text-xs font-semibold text-slate-500">
 				<span>Last {lastScore}</span>
 				<span>{dartsThisLeg} darts</span>
 			</div>
