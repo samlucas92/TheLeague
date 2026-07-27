@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Button } from '../../../../components/Button';
-import { Field, TextInput } from '../../../../components/FormField';
+import { TextInput } from '../../../../components/FormField';
 import { leagueService } from '../../../../services/leagueService';
 import type { Tournament, TournamentMatch } from '../../../../services/types';
 import { Avatar } from './Shared';
@@ -22,7 +22,6 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 	const [playerOneLegs, setPlayerOneLegs] = useState(match.playerOneScore ?? 0);
 	const [playerTwoLegs, setPlayerTwoLegs] = useState(match.playerTwoScore ?? 0);
 	const [visitScore, setVisitScore] = useState('');
-	const [manualDartCount, setManualDartCount] = useState('3');
 	const [pendingDarts, setPendingDarts] = useState<PendingDart[]>([]);
 	const [selectedMultiplier, setSelectedMultiplier] = useState<DartMultiplier>('Single');
 	const [manualCheckoutDouble, setManualCheckoutDouble] = useState(false);
@@ -66,7 +65,7 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 
 		const currentRemaining = activePlayerId === playerOneId ? playerOneRemaining : playerTwoRemaining;
 		const nextRemaining = currentRemaining - score;
-		const dartsUsed = Math.max(1, dartsForTurn.length || Number(manualDartCount) || 3);
+		const dartsUsed = Math.max(1, dartsForTurn.length || 3);
 		const historyEntry = {
 			activePlayerId,
 			playerOneRemaining,
@@ -209,11 +208,11 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 		<div className="grid gap-4 border-t border-slate-100 pt-4">
 			<div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_18rem_1fr] lg:gap-4">
 				<DartsPlayerPanel name={playerOne} score={startScore} remaining={playerOneRemaining} active={gameStarted && activePlayerId === playerOneId} legs={playerOneLegs} lastScore={playerOneLastScore} dartsThisLeg={playerOneDartsThisLeg} />
-				<div className="order-3 col-span-2 rounded-lg border border-slate-200 p-4 lg:order-none lg:col-span-1">
+				<div className="order-3 col-span-2 rounded-lg border border-slate-200 p-3 lg:order-none lg:col-span-1 lg:p-4">
 					<p className="text-xs font-bold uppercase text-slate-500">Legs</p>
-					<p className="mt-2 text-4xl font-bold text-ink">{playerOneLegs} - {playerTwoLegs}</p>
+					<p className="mt-1 text-3xl font-bold text-ink lg:text-4xl">{playerOneLegs} - {playerTwoLegs}</p>
 					<p className="mt-1 text-sm font-semibold text-slate-500">First to {targetLegs}</p>
-					<div className="mt-4 grid gap-2 text-left text-xs text-slate-600">
+					<div className="mt-2 grid gap-1 text-left text-xs text-slate-600 lg:mt-4">
 						<p>{tournament.doubleInRequired ? 'Double in required' : 'Double in not required'}</p>
 						<p>{tournament.doubleOutRequired ? 'Double out required' : 'Double out not required'}</p>
 					</div>
@@ -231,15 +230,9 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 				</div>
 			)}
 			<form className="grid gap-4 rounded-lg border border-slate-200 p-4 text-left" onSubmit={submitVisit}>
-				<div className="flex flex-wrap items-start justify-between gap-3">
-					<div>
-						<h3 className="font-bold text-ink">Scorer</h3>
-						<p className="mt-1 text-sm text-slate-600">{gameStarted ? `${activePlayerName} to throw.` : 'Choose who throws first, then start the game.'}</p>
-					</div>
-					<div className="rounded-md bg-slate-50 px-4 py-2 text-right">
-						<p className="text-xs font-bold uppercase text-slate-500">Remaining</p>
-						<p className="text-2xl font-bold text-ink">{gameStarted ? activeRemaining : '-'}</p>
-					</div>
+				<div>
+					<h3 className="font-bold text-ink">Scorer</h3>
+					<p className="mt-1 text-sm text-slate-600">{gameStarted ? `${activePlayerName} to throw.` : 'Choose who throws first, then start the game.'}</p>
 				</div>
 				<div className="grid gap-3 rounded-md bg-slate-50 p-3">
 					<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
@@ -259,14 +252,9 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 							})}
 						</div>
 					</div>
-					<div className="grid gap-3 rounded-full border border-slate-200 bg-white p-2 sm:grid-cols-[1fr_8rem_9rem] sm:items-center">
-						<TextInput className="min-h-12 rounded-full border-0 bg-transparent text-center text-2xl font-bold shadow-none focus:ring-0" type="number" min="0" max="180" value={visitScore} onChange={(event) => setVisitScore(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} placeholder="Manual score" aria-label="Manual score" />
-						<select className="min-h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700" value={manualDartCount} onChange={(event) => setManualDartCount(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} aria-label="Darts used">
-							<option value="1">1 dart</option>
-							<option value="2">2 darts</option>
-							<option value="3">3 darts</option>
-						</select>
-						<Button type="submit" className="rounded-full" disabled={!canManage || !gameStarted || matchComplete}>Submit</Button>
+					<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-2 sm:grid-cols-[1fr_9rem] sm:items-center">
+						<TextInput className="min-h-11 rounded-md border-0 bg-slate-50 text-center text-xl font-bold shadow-none focus:ring-0" type="number" min="0" max="180" value={visitScore} onChange={(event) => setVisitScore(event.target.value)} disabled={!canManage || !gameStarted || matchComplete} placeholder="Manual score" aria-label="Manual score" />
+						<Button type="submit" disabled={!canManage || !gameStarted || matchComplete}>Submit</Button>
 					</div>
 					{Number(visitScore) === activeRemaining && tournament.doubleOutRequired ? (
 						<label className="flex items-center gap-2 px-2 text-sm font-semibold text-slate-700">
@@ -326,15 +314,16 @@ function formatDartButtonLabel(number: number, multiplier: DartMultiplier) {
 	);
 }
 
-function DartsPlayerPanel({ name, score, remaining, active, legs, lastScore, dartsThisLeg, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; legs: number; lastScore: number; dartsThisLeg: number; tone?: 'blue' | 'green' }) {
+function DartsPlayerPanel({ name, remaining, active, legs, lastScore, dartsThisLeg, tone = 'blue' }: { name: string; score: number; remaining: number; active: boolean; legs: number; lastScore: number; dartsThisLeg: number; tone?: 'blue' | 'green' }) {
 	return (
-		<div className={active ? 'min-w-0 rounded-lg border border-blue-500 bg-blue-50/30 p-3 text-center sm:p-4' : 'min-w-0 rounded-lg border border-slate-200 p-3 text-center sm:p-4'}>
-			<Avatar name={name} large tone={tone === 'green' ? 'green' : 'blue'} />
-			<p className="mt-2 truncate text-sm font-bold text-ink sm:text-base">{name}</p>
-			<p className="mt-3 rounded-md border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-600 sm:text-sm">{score}</p>
-			<p className="mt-3 text-xs font-bold uppercase text-slate-500">Current</p>
-			<p className="mt-1 text-3xl font-bold text-ink sm:text-4xl">{remaining}</p>
-			<div className="mt-3 grid gap-1 text-xs font-semibold text-slate-500 sm:grid-cols-3">
+		<div className={active ? 'min-w-0 rounded-lg border border-blue-500 bg-blue-50/30 p-2 text-center sm:p-4' : 'min-w-0 rounded-lg border border-slate-200 p-2 text-center sm:p-4'}>
+			<div className="flex items-center justify-center gap-2">
+				<span className="hidden sm:inline-grid"><Avatar name={name} large tone={tone === 'green' ? 'green' : 'blue'} /></span>
+				<p className="truncate text-sm font-bold text-ink sm:text-base">{name}</p>
+			</div>
+			<p className="mt-2 text-xs font-bold uppercase text-slate-500">Current</p>
+			<p className="text-3xl font-bold text-ink sm:text-4xl">{remaining}</p>
+			<div className="mt-2 grid gap-1 text-xs font-semibold text-slate-500 sm:grid-cols-3">
 				<span>{legs} legs</span>
 				<span>Last {lastScore}</span>
 				<span>{dartsThisLeg} darts</span>
