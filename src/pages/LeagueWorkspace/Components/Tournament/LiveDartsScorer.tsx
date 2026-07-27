@@ -211,17 +211,8 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 
 	return (
 		<div className="grid gap-4 border-t border-slate-100 pt-4">
-			<div className="grid grid-cols-2 gap-3 lg:grid-cols-[1fr_18rem_1fr] lg:gap-4">
+			<div className="grid grid-cols-2 gap-3 lg:gap-4">
 				<DartsPlayerPanel name={playerOne} remaining={playerOneRemaining} active={gameStarted && activePlayerId === playerOneId} lastScore={playerOneLastScore} dartsThisLeg={playerOneDartsThisLeg} />
-				<div className="order-3 col-span-2 rounded-lg border border-slate-200 p-3 lg:order-none lg:col-span-1 lg:p-4">
-					<p className="text-xs font-bold uppercase text-slate-500">Legs</p>
-					<p className="mt-1 text-3xl font-bold text-ink lg:text-4xl">{playerOneLegs} - {playerTwoLegs}</p>
-					<p className="mt-1 text-sm font-semibold text-slate-500">First to {targetLegs}</p>
-					<div className="mt-2 grid gap-1 text-left text-xs text-slate-600 lg:mt-4">
-						<p>{tournament.doubleInRequired ? 'Double in required' : 'Double in not required'}</p>
-						<p>{tournament.doubleOutRequired ? 'Double out required' : 'Double out not required'}</p>
-					</div>
-				</div>
 				<DartsPlayerPanel name={playerTwo} remaining={playerTwoRemaining} active={gameStarted && activePlayerId === playerTwoId} lastScore={playerTwoLastScore} dartsThisLeg={playerTwoDartsThisLeg} tone="green" />
 			</div>
 			{gameStarted || match.status === 'Completed' ? null : (
@@ -234,15 +225,24 @@ export function LiveDartsScorer({ leagueId, tournament, match, canManage, player
 					</div>
 				</div>
 			)}
-			<form className="grid gap-4 rounded-lg border border-slate-200 p-4 text-left" onSubmit={submitVisit}>
-				<div>
-					<h3 className="font-bold text-ink">Scorer</h3>
-					<p className="mt-1 text-sm text-slate-600">{gameStarted ? `${activePlayerName} to throw.` : 'Choose who throws first, then start the game.'}</p>
-					{checkoutRoute ? (
-						<p className="mt-2 inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-700">
-							Checkout: {checkoutRoute}
+			<form className="grid gap-3 rounded-lg border border-slate-200 p-3 text-left sm:p-4" onSubmit={submitVisit}>
+				<div className="flex items-start justify-between gap-3">
+					<div>
+						<p className="text-xs font-bold uppercase text-slate-500">Legs</p>
+						<p className="text-2xl font-bold text-ink">{playerOneLegs} - {playerTwoLegs}</p>
+						<p className="text-xs font-semibold text-slate-500">First to {targetLegs}</p>
+					</div>
+					<div className="min-w-0 text-right">
+						<p className="text-sm font-semibold text-slate-700">{gameStarted ? `${activePlayerName} to throw` : 'Choose who throws first'}</p>
+						<p className="mt-1 text-xs text-slate-500">
+							{tournament.doubleInRequired ? 'Double in required' : 'Double in not required'} · {tournament.doubleOutRequired ? 'Double out required' : 'Double out not required'}
 						</p>
-					) : null}
+						{checkoutRoute ? (
+							<p className="mt-2 inline-flex rounded-md bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-700">
+								Checkout: {checkoutRoute}
+							</p>
+						) : null}
+					</div>
 				</div>
 				<div className="grid gap-3 rounded-md bg-slate-50 p-3">
 					<div className="grid gap-2 rounded-md border border-slate-200 bg-white p-3">
