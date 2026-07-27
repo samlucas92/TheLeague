@@ -11,8 +11,10 @@ export function TournamentListCard({ tournament, canManage, memberNames, onView,
 	const winner = tournament.winnerName ?? (tournament.winnerMemberId ? memberNames.get(tournament.winnerMemberId) : null);
 
 	return (
-		<article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-[8rem_minmax(0,1fr)_15rem]">
-			<GameArtwork gameType={tournament.gameType} />
+		<article className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[6rem_minmax(0,1fr)] lg:grid-cols-[8rem_minmax(0,1fr)_15rem]">
+			<div className="max-w-28 sm:max-w-none">
+				<GameArtwork gameType={tournament.gameType} />
+			</div>
 			<div className="min-w-0">
 				<StatusBadge label={tournament.status} tone={getStatusTone(tournament.status)} />
 				<h3 className="mt-2 text-xl font-bold text-ink">{tournament.name}</h3>
@@ -23,7 +25,7 @@ export function TournamentListCard({ tournament, canManage, memberNames, onView,
 					<Meta icon={<Calendar size={15} />} label={tournament.completedAt ? `Completed ${formatDate(tournament.completedAt)}` : `Started ${formatDate(tournament.createdAt)}`} />
 				</div>
 			</div>
-			<div className="flex flex-col items-start justify-between gap-3 lg:items-end">
+			<div className="flex flex-col items-start justify-between gap-3 sm:col-span-2 lg:col-span-1 lg:items-end">
 				<div className="flex w-full justify-end gap-2">
 					{canManage ? <Button type="button" variant="ghost" className="px-2" icon={<Trash2 size={16} />} onClick={onDelete} aria-label="Delete tournament" /> : null}
 					<Button type="button" variant="ghost" className="px-2" icon={<MoreVertical size={16} />} aria-label="Tournament actions" />

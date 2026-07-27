@@ -215,13 +215,13 @@ export function FeedLine({ item, actions, onOpen }: { item: PointsFeedItem; acti
 				}
 			}}
 		>
-			<div className="flex flex-wrap items-start justify-between gap-3">
-				<div>
+			<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+				<div className="min-w-0">
 					<p className="font-bold text-ink">{item.displayName} {positive ? 'earned' : 'lost'} {Math.abs(item.points)} points</p>
 					<p className="text-sm text-slate-600">{item.reason}</p>
 					<p className="mt-1 text-xs text-slate-500">{getFeedAttribution(item)}</p>
 				</div>
-				<div className="flex items-center gap-2">
+				<div className="flex flex-wrap items-center gap-2 sm:justify-end">
 					<StatusBadge label={`${positive ? '+' : ''}${item.points}`} tone={positive ? 'good' : 'bad'} />
 					{actions ? <span onClick={(event) => event.stopPropagation()}>{actions}</span> : null}
 				</div>

@@ -33,8 +33,8 @@ export function MySubmissionsPage() {
 			{isLoading ? <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">Loading submissions...</div> : null}
 			{submissions.map((submission) => (
 				<div key={submission.id} className="rounded-lg border border-slate-200 bg-white p-4">
-					<div className="flex flex-wrap justify-between gap-2">
-						<div>
+					<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+						<div className="min-w-0">
 							<h2 className="font-bold text-ink">{submission.challengeName}</h2>
 							<p className="text-sm text-slate-600">{submission.publicReason}</p>
 						</div>

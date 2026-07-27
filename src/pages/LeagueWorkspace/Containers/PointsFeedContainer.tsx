@@ -75,14 +75,14 @@ export function PointsFeedPage() {
 	return (
 		<div className="grid gap-5">
 			<section className="grid gap-3">
-				<div className="flex flex-wrap items-end justify-between gap-3">
+				<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
 					<div>
 						<h2 className="text-lg font-bold text-ink">Points Feed</h2>
 						<p className="text-sm text-slate-600">Every official score change appears here.</p>
 					</div>
-					<div className="flex items-center gap-2">
+					<div className="grid grid-cols-[auto_1fr] items-center gap-2 sm:flex">
 						<StatusBadge label={`${filteredItems.length} of ${items.length} entries`} />
-						<Button type="button" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
+						<Button type="button" className="w-full sm:w-auto" icon={<Plus size={16} />} onClick={openAddPointsModal}>Add points</Button>
 					</div>
 				</div>
 				<div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm lg:grid-cols-3">
@@ -113,7 +113,7 @@ export function PointsFeedPage() {
 						item={item}
 						onOpen={() => setSelectedItem(item)}
 						actions={canManagePoints ? (
-							<div className="flex flex-wrap justify-end gap-2">
+							<div className="flex flex-wrap gap-2 sm:justify-end">
 								<Button type="button" variant="secondary" className="px-3" onClick={() => setEditingItem(item)} aria-label="Edit points"><Pencil size={16} /></Button>
 								<Button type="button" variant="danger" className="px-3" loading={deletingAllocationId === item.allocationId} onClick={() => setConfirmingDeleteItem(item)} aria-label="Delete points"><Trash2 size={16} /></Button>
 							</div>
@@ -131,9 +131,9 @@ export function PointsFeedPage() {
 					<EmptyState title="No points match those filters" description="Clear or change the filters to see more entries." />
 				) : null}
 				{filteredItems.length > pageSize ? (
-					<div className="flex flex-wrap items-center justify-between gap-3">
+					<div className="grid grid-cols-2 items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
 						<Button variant="secondary" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</Button>
-						<StatusBadge label={`Page ${page} of ${totalPages}`} />
+						<span className="order-first col-span-2 sm:order-none sm:col-span-1"><StatusBadge label={`Page ${page} of ${totalPages}`} /></span>
 						<Button variant="secondary" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>Next</Button>
 					</div>
 				) : null}

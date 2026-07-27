@@ -109,7 +109,7 @@ export function MembersPage() {
 								{roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
 							</SelectInput>
 						</Field>
-						<Button type="submit" icon={<Plus size={16} />} loading={pendingAction === 'add-member'}>Add</Button>
+						<Button type="submit" className="w-full md:w-auto" icon={<Plus size={16} />} loading={pendingAction === 'add-member'}>Add</Button>
 					</div>
 				</form>
 			) : null}
@@ -149,10 +149,11 @@ export function MembersPage() {
 							<div className="hidden xl:block" />
 						)}
 						{canManageMembers ? (
-							<div className="flex flex-wrap gap-2 xl:justify-end">
-								<Button type="button" variant="secondary" icon={<Pencil size={16} />} disabled={!isOwner && (member.role === 'Owner' || member.role === 'Admin')} onClick={() => setEditingMember(member)}>Edit</Button>
+							<div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap xl:justify-end">
+								<Button type="button" className="w-full sm:w-auto" variant="secondary" icon={<Pencil size={16} />} disabled={!isOwner && (member.role === 'Owner' || member.role === 'Admin')} onClick={() => setEditingMember(member)}>Edit</Button>
 								<Button
 									type="button"
+									className="w-full sm:w-auto"
 									variant="danger"
 									icon={<Trash2 size={16} />}
 									loading={pendingAction === `${member.id}:remove`}

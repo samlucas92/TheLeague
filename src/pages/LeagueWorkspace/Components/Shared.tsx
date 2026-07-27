@@ -3,9 +3,9 @@ import type { LeaderboardRow } from '../../../services/types';
 
 export function LeaderboardLine({ row }: { row: LeaderboardRow }) {
 	return (
-		<div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
-			<span className="font-semibold text-ink">#{row.position} {row.displayName}</span>
-			<span className="font-bold">{row.approvedPoints} pts</span>
+		<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-slate-50 px-3 py-2">
+			<span className="truncate font-semibold text-ink">#{row.position} {row.displayName}</span>
+			<span className="whitespace-nowrap font-bold">{row.approvedPoints} pts</span>
 		</div>
 	);
 }
@@ -37,10 +37,10 @@ export function getAuditTone(action: string): 'neutral' | 'good' | 'warning' | '
 
 export function EmptyState({ title, description, actions }: { title: string; description: string; actions?: ReactNode }) {
 	return (
-		<div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
+		<div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-center sm:p-8">
 			<h2 className="text-lg font-bold text-ink">{title}</h2>
 			<p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">{description}</p>
-			{actions ? <div className="mt-5 flex flex-wrap justify-center gap-2">{actions}</div> : null}
+			{actions ? <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap sm:justify-center">{actions}</div> : null}
 		</div>
 	);
 }

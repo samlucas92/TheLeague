@@ -88,14 +88,14 @@ export function ChallengesPage() {
 	return (
 		<div className="grid gap-5">
 			<section className="grid gap-3">
-				<div className="flex flex-wrap items-end justify-between gap-3">
+				<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
 					<div>
 						<h2 className="text-lg font-bold text-ink">Challenges</h2>
 						<p className="text-sm text-slate-600">Player-to-player dares with rewards for success and penalties for refusal.</p>
 					</div>
-					<div className="flex items-center gap-2">
+					<div className="grid grid-cols-[auto_1fr] items-center gap-2 sm:flex">
 						<StatusBadge label={`Page ${page} of ${totalPages}`} />
-						<Button type="button" icon={<Plus size={16} />} onClick={openCreateChallengeModal}>Create challenge</Button>
+						<Button type="button" className="w-full sm:w-auto" icon={<Plus size={16} />} onClick={openCreateChallengeModal}>Create challenge</Button>
 					</div>
 				</div>
 				{isLoading ? <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">Loading challenges...</div> : null}
@@ -115,14 +115,14 @@ export function ChallengesPage() {
 								}
 							}}
 						>
-							<div className="flex flex-wrap items-start justify-between gap-3">
+							<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
 								<div className="min-w-0">
 									<h3 className="font-bold text-ink">{challenge.name}</h3>
 									<p className="mt-1 overflow-hidden text-sm leading-6 text-slate-600 [display:-webkit-box] [-webkit-line-clamp:3] [-webkit-box-orient:vertical]">
 										{challenge.description || 'No description yet.'}
 									</p>
 								</div>
-								<div className="flex items-center gap-2">
+								<div className="flex flex-wrap items-center gap-2 sm:justify-end">
 									<StatusBadge label={status} tone={status === 'Rejected' || status === 'Failed' ? 'bad' : status === 'Accepted' || status === 'Completed' ? 'good' : 'warning'} />
 									{canMaintainChallenge ? (
 										<span className="flex gap-2" onClick={(event) => event.stopPropagation()}>
@@ -148,7 +148,7 @@ export function ChallengesPage() {
 					/>
 				) : null}
 				{challenges.length > pageSize ? (
-					<div className="flex items-center justify-between">
+					<div className="grid grid-cols-2 items-center gap-3 sm:flex sm:justify-between">
 						<Button variant="secondary" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1}>Previous</Button>
 						<Button variant="secondary" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages}>Next</Button>
 					</div>

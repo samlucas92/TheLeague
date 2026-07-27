@@ -35,27 +35,27 @@ export function TournamentList({
 }) {
 	return (
 		<section className="grid gap-4">
-			<div className="flex flex-wrap items-center justify-between gap-3">
+			<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 				<div>
 					<h2 className="text-lg font-bold text-ink">Tournaments</h2>
 					<p className="text-sm text-slate-600">Run pool knockouts and highest-score darts eliminations from your league members.</p>
 				</div>
-				<Button type="button" icon={<Trophy size={16} />} onClick={onCreate}>Create tournament</Button>
+				<Button type="button" className="w-full sm:w-auto" icon={<Trophy size={16} />} onClick={onCreate}>Create tournament</Button>
 			</div>
-			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="flex flex-wrap gap-1 rounded-md bg-slate-50 p-1">
+			<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-start">
+				<div className="flex gap-1 overflow-x-auto rounded-md bg-slate-50 p-1">
 					{tournamentFilters.map((item) => (
 						<button
 							key={item}
 							type="button"
-							className={`min-h-9 rounded px-3 text-sm font-semibold ${filter === item ? 'bg-white text-ink shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-ink'}`}
+							className={`min-h-9 shrink-0 rounded px-3 text-sm font-semibold ${filter === item ? 'bg-white text-ink shadow-sm ring-1 ring-slate-200' : 'text-slate-600 hover:text-ink'}`}
 							onClick={() => onFilterChange(item)}
 						>
 							{item}
 						</button>
 					))}
 				</div>
-				<SelectInput className="max-w-44" value={gameFilter} onChange={(event) => onGameFilterChange(event.target.value)}>
+				<SelectInput className="w-full" value={gameFilter} onChange={(event) => onGameFilterChange(event.target.value)}>
 					<option>All games</option>
 					<option>Pool</option>
 					<option>Darts</option>
@@ -79,4 +79,3 @@ export function TournamentList({
 		</section>
 	);
 }
-

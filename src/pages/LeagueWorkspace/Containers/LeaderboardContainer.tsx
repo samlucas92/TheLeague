@@ -30,8 +30,8 @@ export function LeaderboardPage() {
 	return (
 		<div className="grid gap-3">
 			{error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-			<section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-				<table className="w-full text-left text-sm">
+			<section className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+				<table className="min-w-[34rem] w-full text-left text-sm">
 					<thead className="bg-slate-50 text-xs uppercase text-slate-500">
 						<tr><th className="p-3">Position</th><th className="p-3">Participant</th><th className="p-3 text-right">Approved</th><th className="p-3 text-right">Pending</th></tr>
 					</thead>
