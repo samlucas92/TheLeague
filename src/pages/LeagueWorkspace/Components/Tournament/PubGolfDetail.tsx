@@ -5,6 +5,7 @@ import { SelectInput, TextInput } from '../../../../components/FormField';
 import { leagueService } from '../../../../services/leagueService';
 import type { PubGolfHole, Tournament } from '../../../../services/types';
 import { formatDate } from './helpers';
+import { getPubGolfHazard } from './pubGolfHazards';
 import { Avatar } from './Shared';
 
 type PubGolfTab = 'Overview' | 'Leaderboard' | 'Scorecards' | 'Course' | 'Players' | 'Details';
@@ -122,7 +123,11 @@ function PubGolfCourse({ tournament, onSelectHole }: { tournament: Tournament; o
 				return (
 					<button key={hole.id} type="button" className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left hover:border-ink/30" onClick={() => onSelectHole(hole.id)}>
 						<span className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 font-bold">{hole.holeNumber}</span>
-						<span className="min-w-0"><span className="block font-bold text-ink">{hole.venue}</span><span className="block text-sm text-slate-600">{hole.drink}</span></span>
+						<span className="min-w-0">
+							<span className="block font-bold text-ink">{hole.venue}</span>
+							<span className="block text-sm text-slate-600">{hole.drink}</span>
+							{hole.hazard ? <span className="mt-1 inline-flex rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{hole.hazard}</span> : null}
+						</span>
 						<span className="grid justify-items-end gap-1 text-sm text-slate-600"><span>Par {hole.par}</span>{complete ? <CheckCircle size={18} className="text-ink" /> : <Circle size={18} />}</span>
 					</button>
 				);
@@ -132,6 +137,8 @@ function PubGolfCourse({ tournament, onSelectHole }: { tournament: Tournament; o
 }
 
 function PubGolfHoleDetails({ hole, onBack }: { hole: PubGolfHole; onBack: () => void }) {
+	const hazard = getPubGolfHazard(hole.hazard);
+
 	return (
 		<div className="grid gap-4">
 			<button type="button" className="text-left text-sm font-semibold text-slate-600 hover:text-ink" onClick={onBack}>Back to course</button>
@@ -142,6 +149,7 @@ function PubGolfHoleDetails({ hole, onBack }: { hole: PubGolfHole; onBack: () =>
 					<DetailLine label="Par" value={`${hole.par}`} />
 					<DetailLine label="Hole rule" value={hole.holeRule || 'None'} />
 					<DetailLine label="Hazard" value={hole.hazard || 'None'} />
+					{hazard ? <DetailLine label="Hazard detail" value={hazard.description} /> : null}
 					<DetailLine label="Penalty" value={hole.penalty ? `+${hole.penalty} strokes` : 'None'} />
 					<DetailLine label="Notes" value={hole.notes || 'None'} />
 				</div>
@@ -209,6 +217,12 @@ function PubGolfScoreEntry({ leagueId, tournament, hole, onChanged }: { leagueId
 		<div className="rounded-lg border border-slate-200 bg-white p-4">
 			<h3 className="font-bold text-ink">Score entry</h3>
 			<p className="mt-1 text-sm text-slate-600">Hole {hole.holeNumber} - {hole.venue} (Par {hole.par})</p>
+			{hole.hazard ? (
+				<p className="mt-2 rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+					<span className="font-semibold text-ink">{hole.hazard}:</span> {getPubGolfHazard(hole.hazard)?.description ?? 'Apply the configured hazard rule.'}
+					{hole.penalty ? ` Penalty: +${hole.penalty} strokes.` : ''}
+				</p>
+			) : null}
 			<div className="mt-3 divide-y divide-slate-100 overflow-hidden rounded-md border border-slate-200">
 				{tournament.participants.map((participant, index) => (
 					<label key={participant.leagueMemberId} className="grid grid-cols-[minmax(0,1fr)_6rem] items-center gap-3 bg-white px-3 py-2">

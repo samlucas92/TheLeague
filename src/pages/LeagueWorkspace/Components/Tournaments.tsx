@@ -5,6 +5,7 @@ import { Field, SelectInput, TextArea, TextInput } from '../../../components/For
 import { Modal } from '../../../components/Modal';
 import { leagueService } from '../../../services/leagueService';
 import type { League, Member } from '../../../services/types';
+import { getPubGolfHazard, pubGolfHazards } from './Tournament/pubGolfHazards';
 
 type GameChoice = 'Pool' | 'Darts' | 'PubGolf';
 type DartsMode = 'Darts301' | 'Darts501' | 'DartsHighestScore';
@@ -393,8 +394,6 @@ function GameCard({ title, description, selected, icon, onClick }: { title: stri
 	);
 }
 
-const pubGolfHazards = ['', 'Water Hazard', 'Bunker', 'Rough', 'Out of Bounds', 'Time Hazard', 'Blind Shot', 'Quiet Zone', 'One Handed', 'Straw Only', 'Lucky Draw'];
-
 function defaultPubGolfHoles(): PubGolfHoleForm[] {
 	const venues = ['Old Crown', 'Queens Arms', 'The Castle', 'The Griffin', 'The Final Bell', 'The Station', 'The White Horse', 'The Red Lion', 'Destination'];
 	const drinks = ['Pint of Lager', 'Whiskey & mixer', 'Bottle of cider', 'Pint of lager', 'Rum & mixer', 'House pint', 'Ale', 'Lager', 'Final drink'];
@@ -433,47 +432,98 @@ function PubGolfCourseBuilder({ holes, setHoles }: { holes: PubGolfHoleForm[]; s
 			</div>
 			<div className="grid gap-3">
 				{holes.map((hole, index) => (
-					<div key={index} className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3">
-						<div className="flex items-center justify-between gap-3">
-							<p className="font-bold text-ink">Hole {index + 1}</p>
-							<div className="flex gap-2">
-								<Button type="button" variant="secondary" className="px-3" onClick={() => moveHole(index, -1)} disabled={index === 0}>Up</Button>
-								<Button type="button" variant="secondary" className="px-3" onClick={() => moveHole(index, 1)} disabled={index === holes.length - 1}>Down</Button>
-								<Button type="button" variant="danger" className="px-3" onClick={() => setHoles(holes.filter((_, holeIndex) => holeIndex !== index))} disabled={holes.length <= 1}>Delete</Button>
-							</div>
-						</div>
-						<div className="grid gap-3 sm:grid-cols-3">
-							<Field label="Venue">
-								<TextInput value={hole.venue} onChange={(event) => updateHole(index, { venue: event.target.value })} required />
-							</Field>
-							<Field label="Drink">
-								<TextInput value={hole.drink} onChange={(event) => updateHole(index, { drink: event.target.value })} required />
-							</Field>
-							<Field label="Par">
-								<TextInput type="number" min="1" value={hole.par} onChange={(event) => updateHole(index, { par: event.target.value })} required />
-							</Field>
-						</div>
-						<div className="grid gap-3 sm:grid-cols-3">
-							<Field label="Hole rule">
-								<TextInput value={hole.holeRule} onChange={(event) => updateHole(index, { holeRule: event.target.value })} placeholder="Left hand only" />
-							</Field>
-							<Field label="Hazard">
-								<SelectInput value={hole.hazard} onChange={(event) => updateHole(index, { hazard: event.target.value, penalty: event.target.value && !hole.penalty ? '2' : hole.penalty })}>
-									{pubGolfHazards.map((hazard) => <option key={hazard} value={hazard}>{hazard || 'No hazard'}</option>)}
-								</SelectInput>
-							</Field>
-							<Field label="Penalty">
-								<TextInput type="number" value={hole.penalty} onChange={(event) => updateHole(index, { penalty: event.target.value })} placeholder="+2" />
-							</Field>
-						</div>
-						<Field label="Notes">
-							<TextArea value={hole.notes} onChange={(event) => updateHole(index, { notes: event.target.value })} placeholder="Keep it moving!" />
-						</Field>
-					</div>
+					<PubGolfHoleEditor
+						key={index}
+						hole={hole}
+						index={index}
+						canMoveUp={index > 0}
+						canMoveDown={index < holes.length - 1}
+						canDelete={holes.length > 1}
+						onChange={(patch) => updateHole(index, patch)}
+						onMove={moveHole}
+						onDelete={() => setHoles(holes.filter((_, holeIndex) => holeIndex !== index))}
+					/>
 				))}
 			</div>
 			<Button type="button" variant="secondary" onClick={() => setHoles([...holes, { venue: '', drink: '', par: '3', holeRule: '', hazard: '', penalty: '', notes: '' }])}>Add hole</Button>
 		</div>
+	);
+}
+
+function PubGolfHoleEditor({
+	hole,
+	index,
+	canMoveUp,
+	canMoveDown,
+	canDelete,
+	onChange,
+	onMove,
+	onDelete
+}: {
+	hole: PubGolfHoleForm;
+	index: number;
+	canMoveUp: boolean;
+	canMoveDown: boolean;
+	canDelete: boolean;
+	onChange: (patch: Partial<PubGolfHoleForm>) => void;
+	onMove: (index: number, direction: -1 | 1) => void;
+	onDelete: () => void;
+}) {
+	const selectedHazard = getPubGolfHazard(hole.hazard);
+
+	return (
+		<div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-3">
+						<div className="flex items-center justify-between gap-3">
+							<p className="font-bold text-ink">Hole {index + 1}</p>
+							<div className="flex gap-2">
+								<Button type="button" variant="secondary" className="px-3" onClick={() => onMove(index, -1)} disabled={!canMoveUp}>Up</Button>
+								<Button type="button" variant="secondary" className="px-3" onClick={() => onMove(index, 1)} disabled={!canMoveDown}>Down</Button>
+								<Button type="button" variant="danger" className="px-3" onClick={onDelete} disabled={!canDelete}>Delete</Button>
+							</div>
+						</div>
+						<div className="grid gap-3 sm:grid-cols-3">
+							<Field label="Venue">
+								<TextInput value={hole.venue} onChange={(event) => onChange({ venue: event.target.value })} required />
+							</Field>
+							<Field label="Drink">
+								<TextInput value={hole.drink} onChange={(event) => onChange({ drink: event.target.value })} required />
+							</Field>
+							<Field label="Par">
+								<TextInput type="number" min="1" value={hole.par} onChange={(event) => onChange({ par: event.target.value })} required />
+							</Field>
+						</div>
+						<div className="grid gap-3 sm:grid-cols-3">
+							<Field label="Hole rule">
+								<TextInput value={hole.holeRule} onChange={(event) => onChange({ holeRule: event.target.value })} placeholder="Left hand only" />
+							</Field>
+							<Field label="Hazard">
+								<SelectInput
+									value={hole.hazard}
+									onChange={(event) => {
+										const hazard = getPubGolfHazard(event.target.value);
+										onChange({
+											hazard: event.target.value,
+											penalty: hazard ? String(hazard.defaultPenalty) : ''
+										});
+									}}
+								>
+									<option value="">No hazard</option>
+									{pubGolfHazards.map((hazard) => <option key={hazard.name} value={hazard.name}>{hazard.name}</option>)}
+								</SelectInput>
+							</Field>
+							<Field label="Penalty">
+								<TextInput type="number" value={hole.penalty} onChange={(event) => onChange({ penalty: event.target.value })} placeholder="+2" />
+							</Field>
+						</div>
+						{selectedHazard ? (
+							<div className="rounded-md bg-slate-50 px-3 py-2 text-sm text-slate-600">
+								<span className="font-semibold text-ink">{selectedHazard.name}:</span> {selectedHazard.description}
+							</div>
+						) : null}
+						<Field label="Notes">
+							<TextArea value={hole.notes} onChange={(event) => onChange({ notes: event.target.value })} placeholder="Keep it moving!" />
+						</Field>
+					</div>
 	);
 }
 
