@@ -73,27 +73,19 @@ function BracketMatch({ tournament, match, memberNames, top, isFirstRound, isFin
 }
 
 function getBracketRoundTops(rounds: Array<[number, Array<TournamentMatch | null>]>) {
-	const roundTops: number[][] = [];
-	for (let roundIndex = 0; roundIndex < rounds.length; roundIndex += 1) {
-		const matches = rounds[roundIndex][1];
-		if (roundIndex === 0) {
-			roundTops.push(matches.map((_, matchIndex) => matchIndex * BracketLayout.matchStepRem));
-			continue;
+	const firstRoundMatchCount = rounds[0]?.[1].length ?? 0;
+	const bracketHeight = firstRoundMatchCount > 0
+		? ((firstRoundMatchCount - 1) * BracketLayout.matchStepRem) + BracketLayout.matchHeightRem
+		: BracketLayout.matchHeightRem;
+
+	return rounds.map(([, matches]) => {
+		if (matches.length <= 1) {
+			return [(bracketHeight - BracketLayout.matchHeightRem) / 2];
 		}
 
-		const previousTops = roundTops[roundIndex - 1];
-		roundTops.push(matches.map((_, matchIndex) => {
-			const firstFeederTop = previousTops[matchIndex * 2] ?? previousTops.at(-1) ?? 0;
-			const secondFeederTop = previousTops[(matchIndex * 2) + 1];
-			if (secondFeederTop == null) {
-				return firstFeederTop;
-			}
-
-			return ((firstFeederTop + secondFeederTop) / 2);
-		}));
-	}
-
-	return roundTops;
+		const laneHeight = bracketHeight / matches.length;
+		return matches.map((_, matchIndex) => Math.max(0, (laneHeight * matchIndex) + (laneHeight / 2) - (BracketLayout.matchHeightRem / 2)));
+	});
 }
 
 function BracketPlayer({ name, score, won, muted = false }: { name: string; score?: number | null; won: boolean; muted?: boolean }) {
