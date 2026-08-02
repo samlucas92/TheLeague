@@ -18,6 +18,7 @@ export function PwaStatus() {
 	);
 	const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
 		('standalone' in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
+	const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
 	const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
 	const {
@@ -75,7 +76,8 @@ export function PwaStatus() {
 		setIsInstallHelpOpen(false);
 	}
 
-	const canOfferInstall = !isStandalone && !isInstallDismissed && (Boolean(installPrompt) || isIos);
+	const canShowPwaStatus = isStandalone;
+	const canOfferInstall = isMobile && !isStandalone && !isInstallDismissed && (Boolean(installPrompt) || isIos);
 
 	if (!isOnline) {
 		return (
@@ -87,7 +89,7 @@ export function PwaStatus() {
 		);
 	}
 
-	if (needRefresh) {
+	if (canShowPwaStatus && needRefresh) {
 		return (
 			<StatusCard
 				tone="update"
@@ -100,7 +102,7 @@ export function PwaStatus() {
 		);
 	}
 
-	if (offlineReady) {
+	if (canShowPwaStatus && offlineReady) {
 		return (
 			<StatusCard
 				tone="ready"
