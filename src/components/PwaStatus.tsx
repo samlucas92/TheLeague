@@ -8,6 +8,7 @@ type InstallPromptEvent = Event & {
 };
 
 const installDismissedKey = 'theleague.installPromptDismissed';
+const localHostnames = new Set(['localhost', '127.0.0.1', '::1']);
 
 export function PwaStatus() {
 	const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -16,9 +17,11 @@ export function PwaStatus() {
 	const [isInstallDismissed, setIsInstallDismissed] = useState(
 		() => localStorage.getItem(installDismissedKey) === 'true'
 	);
+	const [canApplyBrowserUpdateOnLoad, setCanApplyBrowserUpdateOnLoad] = useState(true);
 	const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
 		('standalone' in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
-	const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+	const isLocalBrowser = localHostnames.has(window.location.hostname) && !isStandalone;
+	const shouldRegisterPwa = !isLocalBrowser;
 	const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
 	const {
@@ -26,6 +29,7 @@ export function PwaStatus() {
 		needRefresh: [needRefresh, setNeedRefresh],
 		updateServiceWorker
 	} = useRegisterSW({
+		immediate: shouldRegisterPwa,
 		onRegisteredSW(_serviceWorkerUrl, registration) {
 			if (!registration) {
 				return;
@@ -57,6 +61,61 @@ export function PwaStatus() {
 		};
 	}, []);
 
+	useEffect(() => {
+		if (shouldRegisterPwa) {
+			return;
+		}
+
+		async function clearLocalPwaCache() {
+			if ('serviceWorker' in navigator) {
+				const registrations = await navigator.serviceWorker.getRegistrations();
+				await Promise.all(registrations.map((registration) => registration.unregister()));
+			}
+
+			if ('caches' in window) {
+				const cacheNames = await caches.keys();
+				await Promise.all(
+					cacheNames
+						.filter((cacheName) => cacheName.startsWith('theleague-') || cacheName.startsWith('workbox-'))
+						.map((cacheName) => caches.delete(cacheName))
+				);
+			}
+		}
+
+		void clearLocalPwaCache();
+	}, [shouldRegisterPwa]);
+
+	useEffect(() => {
+		if (!needRefresh || isStandalone) {
+			return;
+		}
+
+		if (canApplyBrowserUpdateOnLoad) {
+			void updateServiceWorker(true);
+			return;
+		}
+
+		function activateWaitingServiceWorker() {
+			void updateServiceWorker(false);
+		}
+
+		window.addEventListener('pagehide', activateWaitingServiceWorker, { once: true });
+		window.addEventListener('beforeunload', activateWaitingServiceWorker, { once: true });
+
+		return () => {
+			window.removeEventListener('pagehide', activateWaitingServiceWorker);
+			window.removeEventListener('beforeunload', activateWaitingServiceWorker);
+		};
+	}, [canApplyBrowserUpdateOnLoad, isStandalone, needRefresh, updateServiceWorker]);
+
+	useEffect(() => {
+		const updateWindow = window.setTimeout(() => {
+			setCanApplyBrowserUpdateOnLoad(false);
+		}, 10000);
+
+		return () => window.clearTimeout(updateWindow);
+	}, []);
+
 	async function installApp() {
 		if (!installPrompt) {
 			setIsInstallHelpOpen(true);
@@ -76,8 +135,7 @@ export function PwaStatus() {
 		setIsInstallHelpOpen(false);
 	}
 
-	const canShowPwaStatus = isStandalone;
-	const canOfferInstall = isMobile && !isStandalone && !isInstallDismissed && (Boolean(installPrompt) || isIos);
+	const canOfferInstall = shouldRegisterPwa && !isStandalone && !isInstallDismissed && (Boolean(installPrompt) || isIos);
 
 	if (!isOnline) {
 		return (
@@ -89,7 +147,7 @@ export function PwaStatus() {
 		);
 	}
 
-	if (canShowPwaStatus && needRefresh) {
+	if (needRefresh && isStandalone) {
 		return (
 			<StatusCard
 				tone="update"
@@ -102,7 +160,7 @@ export function PwaStatus() {
 		);
 	}
 
-	if (canShowPwaStatus && offlineReady) {
+	if (offlineReady && isStandalone) {
 		return (
 			<StatusCard
 				tone="ready"
